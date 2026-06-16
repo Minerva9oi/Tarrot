@@ -90,3 +90,9 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Added `DefaultStarfieldBackground` as the default advanced background that can later participate in card reveal effects.
 - Added UGUI as an explicit Unity package for menu UI.
 - Verified Unity compiles successfully in batch mode.
+
+### 2026-06-16 - Starfield Visibility Fix
+
+- Fixed the Boot scene camera position for 2D rendering by moving the camera to `z = -10`.
+- Increased default starfield visibility with slightly larger, brighter, and denser soft stars.
+- Kept the background architecture unchanged so the starfield remains a replaceable default theme.

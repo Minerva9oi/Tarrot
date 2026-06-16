@@ -17,6 +17,7 @@ namespace Tarot.EditorTools
             scene.name = "Boot";
 
             var cameraObject = new GameObject("Main Camera");
+            cameraObject.transform.position = new Vector3(0f, 0f, -10f);
             var camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.005f, 0.006f, 0.01f);

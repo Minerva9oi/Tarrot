@@ -5,12 +5,12 @@ namespace Tarot.Appearance
 {
     public sealed class DefaultStarfieldBackground : MonoBehaviour, IReadingEffectBackground
     {
-        private const int StarCount = 150;
+        private const int StarCount = 180;
         private const int SortingOrder = -100;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
-        [SerializeField] private Color starColor = new(0.72f, 0.78f, 1f, 1f);
-        [SerializeField] private Color warmStarColor = new(0.95f, 0.82f, 0.56f, 1f);
+        [SerializeField] private Color starColor = new(0.78f, 0.84f, 1f, 1f);
+        [SerializeField] private Color warmStarColor = new(1f, 0.88f, 0.62f, 1f);
         [SerializeField] private float idleBreathSpeed = 0.42f;
         [SerializeField] private float awakenedBrightness = 1.65f;
         [SerializeField] private float gatherSpeed = 2.8f;
@@ -96,8 +96,8 @@ namespace Tarot.Appearance
                     renderer,
                     Random.Range(-8.9f, 8.9f),
                     Random.Range(-5f, 5f),
-                    Random.Range(0.018f, 0.085f),
-                    Random.Range(0.16f, 0.82f),
+                    Random.Range(0.045f, 0.16f),
+                    Random.Range(0.32f, 0.95f),
                     Random.Range(0f, Mathf.PI * 2f),
                     Random.value > 0.82f);
 
@@ -130,7 +130,7 @@ namespace Tarot.Appearance
 
         private void UpdateStarVisual(Star star, float time)
         {
-            var breath = 0.62f + Mathf.Sin(time * idleBreathSpeed + star.Phase) * 0.22f;
+            var breath = 0.72f + Mathf.Sin(time * idleBreathSpeed + star.Phase) * 0.2f;
             var stateBoost = State switch
             {
                 ReadingBackgroundState.Awakened => awakenedBrightness,
