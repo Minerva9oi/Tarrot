@@ -1,0 +1,41 @@
+using System.IO;
+using Tarot.Core;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+namespace Tarot.EditorTools
+{
+    public static class TarotProjectBootstrapper
+    {
+        public static void CreateBootScene()
+        {
+            Directory.CreateDirectory("Assets/Scenes");
+
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            scene.name = "Boot";
+
+            var cameraObject = new GameObject("Main Camera");
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.035f, 0.039f, 0.047f);
+            camera.orthographic = true;
+            camera.orthographicSize = 5f;
+            cameraObject.tag = "MainCamera";
+
+            var bootstrapObject = new GameObject("Game Bootstrap");
+            bootstrapObject.AddComponent<GameBootstrap>();
+
+            EditorSceneManager.SaveScene(scene, "Assets/Scenes/Boot.unity");
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene("Assets/Scenes/Boot.unity", true)
+            };
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+    }
+}
+
