@@ -131,3 +131,11 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Kept the card ring visible after selection and moved the selected card to the lower center.
 - Added a prototype 2D flip reveal with upright/reversed result text.
 - Verified the project compiles successfully in Unity batch mode.
+
+### 2026-06-16 - Daily Reading Ring Spacing Tuning
+
+- Reduced the visible card-ring arc so fewer cards appear at once.
+- Increased card spacing by using a wider ring and smaller ring-card scale.
+- Moved the visible card ring downward so the top edge has more breathing room.
+- Kept the selected card moving to the lower center and preserved a readable selected-card size.
+- Confirmed the future card-art import should use the same shared 78-card deck.

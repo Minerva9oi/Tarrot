@@ -12,11 +12,12 @@ namespace Tarot.DailyReading
     public sealed class DailyReadingController : MonoBehaviour
     {
         private const int FocusIndex = 39;
-        private const float CardWidth = 1.05f;
-        private const float CardHeight = 1.62f;
-        private const float RingRadius = 8f;
-        private const float RingYOffset = -3.85f;
-        private const float VisibleArcDegrees = 92f;
+        private const float CardWidth = 0.82f;
+        private const float CardHeight = 1.28f;
+        private const float RingRadius = 9.4f;
+        private const float RingYOffset = -6f;
+        private const float VisibleArcDegrees = 58f;
+        private const float SelectedCardScale = 1.65f;
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
 
@@ -196,11 +197,11 @@ namespace Tarot.DailyReading
                 var radians = angle * Mathf.Deg2Rad;
                 var position = new Vector3(Mathf.Cos(radians) * RingRadius, Mathf.Sin(radians) * RingRadius + RingYOffset, 0f);
                 var focus = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / (VisibleArcDegrees * 0.5f));
-                var scale = Mathf.Lerp(0.68f, 0.95f, focus);
+                var scale = Mathf.Lerp(0.58f, 0.82f, focus);
                 var tint = Color.Lerp(cardDimColor, focusColor, focus);
                 tint.a = Mathf.Lerp(0.58f, 1f, focus);
 
-                view.Transform.localPosition = position + Vector3.up * focus * 0.18f;
+                view.Transform.localPosition = position + Vector3.up * focus * 0.12f;
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
                 view.Transform.localScale = new Vector3(CardWidth * scale, CardHeight * scale, 1f);
                 view.Renderer.color = tint;
@@ -246,7 +247,7 @@ namespace Tarot.DailyReading
             var startPosition = view.Transform.localPosition;
             var startRotation = view.Transform.localRotation;
             var targetPosition = selectedAnchor.localPosition;
-            var targetScale = new Vector3(CardWidth * 1.2f, CardHeight * 1.2f, 1f);
+            var targetScale = new Vector3(CardWidth * SelectedCardScale, CardHeight * SelectedCardScale, 1f);
             var duration = 0.72f;
             var elapsed = 0f;
 
@@ -280,7 +281,7 @@ namespace Tarot.DailyReading
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / duration);
                 var width = Mathf.Abs(Mathf.Cos(progress * Mathf.PI));
-                view.Transform.localScale = new Vector3(CardWidth * 1.2f * width, CardHeight * 1.2f, 1f);
+                view.Transform.localScale = new Vector3(CardWidth * SelectedCardScale * width, CardHeight * SelectedCardScale, 1f);
 
                 if (!changedFace && progress >= 0.5f)
                 {
@@ -297,7 +298,7 @@ namespace Tarot.DailyReading
                 yield return null;
             }
 
-            view.Transform.localScale = new Vector3(CardWidth * 1.2f, CardHeight * 1.2f, 1f);
+            view.Transform.localScale = new Vector3(CardWidth * SelectedCardScale, CardHeight * SelectedCardScale, 1f);
         }
 
         private void ShowResult(TarotRuntimeCard card, TarotOrientation orientation)
