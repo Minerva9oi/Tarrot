@@ -93,3 +93,21 @@ Impact:
 - `Assets/`, `Packages/`, `ProjectSettings/`, and Unity `.meta` files must be committed.
 - Generated folders such as `Library/`, `Temp/`, `Obj/`, `Build/`, `Builds/`, `Logs/`, and `UserSettings/` are ignored.
 
+## 2026-06-16 - Treat Starfield as a Replaceable Background Theme
+
+Reason:
+
+- The default visual identity should be a black starfield with soft breathing stars.
+- Players should eventually be able to choose different backgrounds.
+- Future Steam Workshop backgrounds should not require rewriting the reading flow.
+
+Rejected:
+
+- Hardcoding the starfield as the only game background.
+- Making card reveal effects depend on one specific background implementation.
+
+Impact:
+
+- The default starfield is implemented as a background theme.
+- Advanced backgrounds may respond to reading events such as awaken, gather, and restore.
+- Simpler custom backgrounds can skip advanced effects and rely on generic foreground particles later.

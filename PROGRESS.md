@@ -4,7 +4,7 @@ Last updated: 2026-06-16
 
 ## Current Phase
 
-Unity project foundation completed. Next phase is first visual and main menu confirmation.
+Main menu and default starfield background prototype completed. Next phase is visual review and refinement, then reading-mode selection flow.
 
 ## Completed
 
@@ -26,13 +26,16 @@ Unity project foundation completed. Next phase is first visual and main menu con
 - Connected the private GitHub repository.
 - Initialized the Unity project structure.
 - Added the first system skeletons and boot scene.
+- Added the first main menu prototype.
+- Added the default starfield background prototype.
 
 ## Next Tasks
 
-- Confirm the first visual direction and main menu design before UI implementation.
-- Resolve the best URP setup path for Unity `6000.4.11f1` or choose a more stable Unity version/template if needed.
+- Review the main menu and starfield prototype in Unity.
+- Refine visual spacing, typography, and star density based on review.
+- Resolve the best URP setup path later if built-in rendering is not enough for the desired card reveal effects.
 - Define the first demo's concrete card data format for the full 78-card deck.
-- Build the first visual prototype after design confirmation.
+- Confirm the reading-mode selection flow for `牌阵占卜`.
 
 ## Working Agreement
 
@@ -63,3 +66,27 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Verified Unity compiles the project successfully in batch mode.
 - Verified Unity generated `.meta` files and they are not ignored by Git.
 - Deferred URP activation to the visual phase because Unity `6000.4.11f1` reported package-level compile errors when URP was added directly through `manifest.json` in batch mode. The project remains stable and compilable without URP for this foundation stage.
+
+### 2026-06-16 - Main Menu and Default Starfield
+
+- Added `Tarot` as the first title screen name.
+- Added main menu entries:
+  - `每日运势`
+  - `牌阵占卜`
+  - `占卜日记`
+  - `设置`
+  - `退出`
+- Added a default black starfield background with soft circular stars and subtle breathing animation.
+- Added a replaceable background architecture:
+  - `BackgroundThemeData`
+  - `BackgroundManager`
+  - `IReadingEffectBackground`
+  - `ReadingBackgroundState`
+- Added reading-effect states for future card reveal effects:
+  - `Idle`
+  - `Awakened`
+  - `Gathering`
+  - `Restoring`
+- Added `DefaultStarfieldBackground` as the default advanced background that can later participate in card reveal effects.
+- Added UGUI as an explicit Unity package for menu UI.
+- Verified Unity compiles successfully in batch mode.

@@ -19,7 +19,7 @@ namespace Tarot.EditorTools
             var cameraObject = new GameObject("Main Camera");
             var camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.035f, 0.039f, 0.047f);
+            camera.backgroundColor = new Color(0.005f, 0.006f, 0.01f);
             camera.orthographic = true;
             camera.orthographicSize = 5f;
             cameraObject.tag = "MainCamera";
@@ -38,4 +38,3 @@ namespace Tarot.EditorTools
         }
     }
 }
-
