@@ -10,10 +10,11 @@ namespace Tarot.Appearance
         private const int PlacementAttempts = 16;
         private const float MinStarDistance = 0.42f;
         private const int StarfieldSeed = 20260616;
+        private const float IdleBrightnessMultiplier = 1.22f;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
-        [SerializeField] private Color starColor = new(0.82f, 0.88f, 1f, 1f);
-        [SerializeField] private Color warmStarColor = new(1f, 0.9f, 0.68f, 1f);
+        [SerializeField] private Color starColor = new(0.88f, 0.92f, 1f, 1f);
+        [SerializeField] private Color warmStarColor = new(1f, 0.94f, 0.74f, 1f);
         [SerializeField] private float idleBreathSpeed = 0.24f;
         [SerializeField] private float awakenedBrightness = 1.65f;
         [SerializeField] private float gatherSpeed = 2.8f;
@@ -176,7 +177,7 @@ namespace Tarot.Appearance
                 _ => 1f
             };
 
-            var alpha = Mathf.Clamp01(star.BaseAlpha * breath * stateBoost);
+            var alpha = Mathf.Clamp01(star.BaseAlpha * breath * stateBoost * IdleBrightnessMultiplier);
             var color = star.IsWarm ? warmStarColor : starColor;
             color.a = alpha;
             star.Renderer.color = color;
@@ -225,10 +226,10 @@ namespace Tarot.Appearance
 
             if (roll > 0.72f)
             {
-                return new StarKind(0.045f, 0.085f, 0.48f, 0.76f, 0.14f);
+                return new StarKind(0.045f, 0.085f, 0.56f, 0.86f, 0.14f);
             }
 
-            return new StarKind(0.022f, 0.048f, 0.22f, 0.46f, 0.1f);
+            return new StarKind(0.022f, 0.048f, 0.3f, 0.56f, 0.1f);
         }
 
         private static Sprite CreateStarSprite()

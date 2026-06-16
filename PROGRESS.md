@@ -113,3 +113,9 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Reduced background star count so constellation anchors read more clearly.
 - Sharpened the star sprite by reducing the soft halo and keeping a clearer bright core.
 - Increased breathing strength while keeping the motion slow and quiet.
+
+### 2026-06-16 - Starfield Brightness Tuning
+
+- Increased default star brightness while keeping the same constellation layout.
+- Slightly lifted cool and warm star colors.
+- Increased subtle background star alpha so the sky reads more clearly in the Game view.
