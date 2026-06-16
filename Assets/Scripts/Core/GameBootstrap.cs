@@ -1,5 +1,6 @@
 using UnityEngine;
 using Tarot.Appearance;
+using Tarot.DailyReading;
 using Tarot.UI;
 
 namespace Tarot.Core
@@ -26,7 +27,20 @@ namespace Tarot.Core
             backgroundManager.SetActiveBackground(starfield);
 
             var menuObject = new GameObject("Main Menu");
-            menuObject.AddComponent<MainMenuController>();
+            var mainMenu = menuObject.AddComponent<MainMenuController>();
+            mainMenu.DailyReadingRequested += () =>
+            {
+                menuObject.SetActive(false);
+                var dailyObject = new GameObject("Daily Reading");
+                var dailyReading = dailyObject.AddComponent<DailyReadingController>();
+                dailyReading.SetBackgroundManager(backgroundManager);
+                dailyReading.BackRequested += () =>
+                {
+                    Destroy(dailyObject);
+                    menuObject.SetActive(true);
+                    backgroundManager.SetIdle();
+                };
+            };
         }
     }
 }

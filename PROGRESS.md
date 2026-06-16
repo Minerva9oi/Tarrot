@@ -119,3 +119,15 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Increased default star brightness while keeping the same constellation layout.
 - Slightly lifted cool and warm star colors.
 - Increased subtle background star alpha so the sky reads more clearly in the Game view.
+
+### 2026-06-16 - Daily Reading Ring Prototype
+
+- Added a full 78-card runtime tarot deck shared by future reading modes.
+- Connected the `每日运势` main menu button to a playable daily reading prototype.
+- Added an upper-screen circular card ring where all cards point toward the circle center.
+- Limited the visible ring to the upper arc, using roughly the top 35% of the screen.
+- Added mouse wheel and drag rotation for browsing the deck.
+- Added focused-card selection at the center of the visible arc.
+- Kept the card ring visible after selection and moved the selected card to the lower center.
+- Added a prototype 2D flip reveal with upright/reversed result text.
+- Verified the project compiles successfully in Unity batch mode.
