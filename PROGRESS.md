@@ -96,3 +96,11 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Fixed the Boot scene camera position for 2D rendering by moving the camera to `z = -10`.
 - Increased default starfield visibility with slightly larger, brighter, and denser soft stars.
 - Kept the background architecture unchanged so the starfield remains a replaceable default theme.
+
+### 2026-06-16 - Joshua Tree Starfield Tuning
+
+- Tuned the default starfield toward a clear, quiet Joshua Tree night sky reference.
+- Reduced overall star count to avoid dense clusters.
+- Added minimum spacing attempts so stars distribute more naturally.
+- Added star tiers so a small number of stars appear brighter while most remain subtle.
+- Slowed the breathing effect so it feels faint and atmospheric instead of decorative.

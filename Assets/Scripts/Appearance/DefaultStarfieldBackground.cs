@@ -5,13 +5,15 @@ namespace Tarot.Appearance
 {
     public sealed class DefaultStarfieldBackground : MonoBehaviour, IReadingEffectBackground
     {
-        private const int StarCount = 180;
+        private const int StarCount = 135;
         private const int SortingOrder = -100;
+        private const int PlacementAttempts = 16;
+        private const float MinStarDistance = 0.42f;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
-        [SerializeField] private Color starColor = new(0.78f, 0.84f, 1f, 1f);
-        [SerializeField] private Color warmStarColor = new(1f, 0.88f, 0.62f, 1f);
-        [SerializeField] private float idleBreathSpeed = 0.42f;
+        [SerializeField] private Color starColor = new(0.82f, 0.88f, 1f, 1f);
+        [SerializeField] private Color warmStarColor = new(1f, 0.9f, 0.68f, 1f);
+        [SerializeField] private float idleBreathSpeed = 0.18f;
         [SerializeField] private float awakenedBrightness = 1.65f;
         [SerializeField] private float gatherSpeed = 2.8f;
 
@@ -91,15 +93,16 @@ namespace Tarot.Appearance
                 renderer.sprite = starSprite;
                 renderer.sortingOrder = SortingOrder;
 
+                var starKind = RollStarKind();
                 var star = new Star(
                     starObject.transform,
                     renderer,
-                    Random.Range(-8.9f, 8.9f),
-                    Random.Range(-5f, 5f),
-                    Random.Range(0.045f, 0.16f),
-                    Random.Range(0.32f, 0.95f),
+                    PickStarPosition(),
+                    Random.Range(starKind.MinSize, starKind.MaxSize),
+                    Random.Range(starKind.MinAlpha, starKind.MaxAlpha),
                     Random.Range(0f, Mathf.PI * 2f),
-                    Random.value > 0.82f);
+                    Random.value > 0.88f,
+                    starKind.BreathAmount);
 
                 star.Transform.localPosition = star.HomePosition;
                 stars.Add(star);
@@ -130,7 +133,7 @@ namespace Tarot.Appearance
 
         private void UpdateStarVisual(Star star, float time)
         {
-            var breath = 0.72f + Mathf.Sin(time * idleBreathSpeed + star.Phase) * 0.2f;
+            var breath = 1f + Mathf.Sin(time * idleBreathSpeed + star.Phase) * star.BreathAmount;
             var stateBoost = State switch
             {
                 ReadingBackgroundState.Awakened => awakenedBrightness,
@@ -146,6 +149,52 @@ namespace Tarot.Appearance
 
             var scale = star.BaseSize * (State == ReadingBackgroundState.Gathering ? 1.55f : 1f);
             star.Transform.localScale = Vector3.one * scale;
+        }
+
+        private Vector3 PickStarPosition()
+        {
+            var candidate = Vector3.zero;
+
+            for (var attempt = 0; attempt < PlacementAttempts; attempt++)
+            {
+                candidate = new Vector3(Random.Range(-8.9f, 8.9f), Random.Range(-5f, 5f), 0f);
+                if (HasEnoughSpace(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return candidate;
+        }
+
+        private bool HasEnoughSpace(Vector3 candidate)
+        {
+            foreach (var star in stars)
+            {
+                if (Vector3.Distance(candidate, star.HomePosition) < MinStarDistance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static StarKind RollStarKind()
+        {
+            var roll = Random.value;
+
+            if (roll > 0.94f)
+            {
+                return new StarKind(0.16f, 0.24f, 0.9f, 1f, 0.1f);
+            }
+
+            if (roll > 0.72f)
+            {
+                return new StarKind(0.08f, 0.14f, 0.48f, 0.8f, 0.08f);
+            }
+
+            return new StarKind(0.032f, 0.075f, 0.2f, 0.48f, 0.055f);
         }
 
         private static Sprite CreateStarSprite()
@@ -177,15 +226,16 @@ namespace Tarot.Appearance
 
         private sealed class Star
         {
-            public Star(Transform transform, SpriteRenderer renderer, float x, float y, float baseSize, float baseAlpha, float phase, bool isWarm)
+            public Star(Transform transform, SpriteRenderer renderer, Vector3 homePosition, float baseSize, float baseAlpha, float phase, bool isWarm, float breathAmount)
             {
                 Transform = transform;
                 Renderer = renderer;
-                HomePosition = new Vector3(x, y, 0f);
+                HomePosition = homePosition;
                 BaseSize = baseSize;
                 BaseAlpha = baseAlpha;
                 Phase = phase;
                 IsWarm = isWarm;
+                BreathAmount = breathAmount;
             }
 
             public Transform Transform { get; }
@@ -195,6 +245,25 @@ namespace Tarot.Appearance
             public float BaseAlpha { get; }
             public float Phase { get; }
             public bool IsWarm { get; }
+            public float BreathAmount { get; }
+        }
+
+        private readonly struct StarKind
+        {
+            public StarKind(float minSize, float maxSize, float minAlpha, float maxAlpha, float breathAmount)
+            {
+                MinSize = minSize;
+                MaxSize = maxSize;
+                MinAlpha = minAlpha;
+                MaxAlpha = maxAlpha;
+                BreathAmount = breathAmount;
+            }
+
+            public float MinSize { get; }
+            public float MaxSize { get; }
+            public float MinAlpha { get; }
+            public float MaxAlpha { get; }
+            public float BreathAmount { get; }
         }
     }
 }
