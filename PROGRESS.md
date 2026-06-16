@@ -104,3 +104,12 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Added minimum spacing attempts so stars distribute more naturally.
 - Added star tiers so a small number of stars appear brighter while most remain subtle.
 - Slowed the breathing effect so it feels faint and atmospheric instead of decorative.
+
+### 2026-06-16 - Constellation-Based Starfield
+
+- Reworked the default starfield from fully random placement to a deterministic wide-sky composition.
+- Added recognizable Taurus anchors, including the Pleiades cluster, Hyades shape, Aldebaran, and horn stars.
+- Added recognizable Sagittarius anchors using the Teapot asterism.
+- Reduced background star count so constellation anchors read more clearly.
+- Sharpened the star sprite by reducing the soft halo and keeping a clearer bright core.
+- Increased breathing strength while keeping the motion slow and quiet.
