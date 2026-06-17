@@ -12,6 +12,7 @@ namespace Tarot.EditorTools
         public static void CreateBootScene()
         {
             Directory.CreateDirectory("Assets/Scenes");
+            DefaultCardDeckArtBuilder.CreateOrUpdate();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             scene.name = "Boot";

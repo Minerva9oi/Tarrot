@@ -139,3 +139,20 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Moved the visible card ring downward so the top edge has more breathing room.
 - Kept the selected card moving to the lower center and preserved a readable selected-card size.
 - Confirmed the future card-art import should use the same shared 78-card deck.
+
+### 2026-06-16 - Direct Card Selection Ring
+
+- Changed daily reading selection so the player must click a visible card directly.
+- Removed automatic selection of the center card.
+- Expanded the visible card ring horizontally so it spans across the screen.
+- Increased ring-card size while keeping a consistent card scale across the visible ring.
+- Removed center-card scale emphasis; middle cards no longer become larger than surrounding cards.
+- Continued local tuning by making ring cards larger, reducing visible card count, and increasing card gaps.
+
+### 2026-06-16 - Default Real Card Fronts
+
+- Added the default Rider-Waite-Smith card-front images under `Assets/Art/CardDecks/Default/Fronts`.
+- Confirmed the source set contains 78 front images and no matching card-back image.
+- Added a `CardDeckArtData` resource so card-front sprites are mapped by tarot card ID instead of hard-coded in the reading scene.
+- Updated the daily reading reveal so selected cards flip to their real front artwork.
+- Kept the generated placeholder card back until a dedicated card-back design is chosen.

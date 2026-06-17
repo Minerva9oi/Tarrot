@@ -1,0 +1,39 @@
+Default Tarot Card Fronts
+=========================
+
+Asset folder:
+Assets/Art/CardDecks/Default/Fronts/
+
+Source collection:
+Rider-Waite-Smith tarot deck (Geldard), Wikimedia Commons
+https://commons.wikimedia.org/wiki/Category:Rider-Waite-Smith_tarot_deck_(Geldard)
+
+Original deck:
+Rider-Waite-Smith Tarot Deck
+
+Original artist:
+Pamela Colman Smith
+
+Original publication date:
+1910
+
+Digital cleanup / upload attribution:
+The Wikimedia Commons category identifies this image set as Rider-Waite-Smith tarot deck images cleaned and uploaded by YarnSpinnerTool.
+
+License / public-domain status:
+The referenced Wikimedia Commons file pages mark the images as public domain and identify the license marker as Creative Commons Public Domain Mark 1.0.
+
+Reference file page checked:
+Ace of Cups (Rider-Waite Smith tarot deck).png
+https://commons.wikimedia.org/wiki/File:Ace_of_Cups_(Rider-Waite_Smith_tarot_deck).png
+
+Local modifications:
+- Files have been renamed to the project's internal deck naming convention.
+- Images may be resized for consistent in-game rendering.
+- cups_01.png was resized to match the project deck size of 960x1646.
+
+Card backs:
+The referenced Wikimedia Commons category contains 78 files total, matching the 78 front faces of the tarot deck. No matching card-back image is included in this source set.
+
+Commercial release note:
+Before Steam release, re-check the Wikimedia Commons file pages for any changed metadata or licensing notes and keep this attribution file with the distributed project materials where appropriate.

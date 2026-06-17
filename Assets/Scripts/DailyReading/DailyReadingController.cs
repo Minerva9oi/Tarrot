@@ -12,12 +12,11 @@ namespace Tarot.DailyReading
     public sealed class DailyReadingController : MonoBehaviour
     {
         private const int FocusIndex = 39;
-        private const float CardWidth = 0.82f;
-        private const float CardHeight = 1.28f;
-        private const float RingRadius = 9.4f;
-        private const float RingYOffset = -6f;
-        private const float VisibleArcDegrees = 58f;
-        private const float SelectedCardScale = 1.65f;
+        private const float RingCardScale = 1.5f;
+        private const float RingRadius = 24f;
+        private const float RingYOffset = -20.65f;
+        private const float VisibleArcDegrees = 68f;
+        private const float SelectedCardScale = 1.45f;
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
 
@@ -43,8 +42,9 @@ namespace Tarot.DailyReading
         private bool isResolving;
         private Vector3 lastMousePosition;
         private Vector3 mouseDownPosition;
+        private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
-        private Sprite cardFaceSprite;
+        private Sprite fallbackCardFaceSprite;
 
         public event Action BackRequested;
 
@@ -54,8 +54,9 @@ namespace Tarot.DailyReading
                 new[] { "PingFang SC", "Microsoft YaHei", "Helvetica Neue", "Arial" },
                 18);
 
+            cardDeckArt = CardDeckArtData.LoadDefault();
             cardBackSprite = CreateCardSprite(cardBackColor, cardLineColor, true);
-            cardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
+            fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
 
             BuildScene();
             BuildDeckRing();
@@ -90,7 +91,7 @@ namespace Tarot.DailyReading
 
             canvas = CreateCanvas();
             titleText = CreateText(canvas.transform, "每日运势", 42, new Color(0.92f, 0.9f, 0.84f, 1f), new Vector2(0f, 452f), new Vector2(520f, 70f));
-            instructionText = CreateText(canvas.transform, "转动牌环，让一张牌来到正中央。点击抽取今日指引。", 22, new Color(0.66f, 0.68f, 0.74f, 1f), new Vector2(0f, 405f), new Vector2(900f, 48f));
+            instructionText = CreateText(canvas.transform, "滚轮或拖拽转动牌环，点击任意可见牌抽取今日指引。", 22, new Color(0.66f, 0.68f, 0.74f, 1f), new Vector2(0f, 405f), new Vector2(900f, 48f));
             resultText = CreateText(canvas.transform, string.Empty, 24, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -365f), new Vector2(980f, 180f));
 
             CreateButton(canvas.transform, "返回", new Vector2(-790f, -456f), () => BackRequested?.Invoke());
@@ -127,7 +128,11 @@ namespace Tarot.DailyReading
                 renderer.sprite = cardBackSprite;
                 renderer.sortingOrder = index;
 
-                var view = new CardView(cards[index], cardObject.transform, renderer);
+                var collider = cardObject.AddComponent<BoxCollider2D>();
+                collider.size = cardBackSprite.bounds.size;
+
+                var frontSprite = cardDeckArt != null ? cardDeckArt.GetFrontSprite(cards[index].CardId) : null;
+                var view = new CardView(cards[index], cardObject.transform, renderer, collider, frontSprite);
                 cardViews.Add(view);
             }
 
@@ -156,7 +161,7 @@ namespace Tarot.DailyReading
                 isDragging = false;
                 if (!pointerDownOverUi && !dragExceededThreshold && !IsPointerOverUi())
                 {
-                    SelectFocusedCard();
+                    TrySelectClickedCard(UnityEngine.Input.mousePosition);
                 }
             }
 
@@ -196,46 +201,59 @@ namespace Tarot.DailyReading
 
                 var radians = angle * Mathf.Deg2Rad;
                 var position = new Vector3(Mathf.Cos(radians) * RingRadius, Mathf.Sin(radians) * RingRadius + RingYOffset, 0f);
-                var focus = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / (VisibleArcDegrees * 0.5f));
-                var scale = Mathf.Lerp(0.58f, 0.82f, focus);
-                var tint = Color.Lerp(cardDimColor, focusColor, focus);
-                tint.a = Mathf.Lerp(0.58f, 1f, focus);
+                var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / (VisibleArcDegrees * 0.5f));
+                var tint = Color.Lerp(cardDimColor, focusColor, 0.2f + centerProximity * 0.22f);
+                tint.a = Mathf.Lerp(0.72f, 0.96f, centerProximity);
 
-                view.Transform.localPosition = position + Vector3.up * focus * 0.12f;
+                view.Transform.localPosition = position;
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
-                view.Transform.localScale = new Vector3(CardWidth * scale, CardHeight * scale, 1f);
+                view.Transform.localScale = new Vector3(RingCardScale, RingCardScale, 1f);
                 view.Renderer.color = tint;
-                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + focus * 100f);
+                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f);
             }
         }
 
-        private void SelectFocusedCard()
+        private void TrySelectClickedCard(Vector3 screenPosition)
         {
-            var focused = GetFocusedCard();
-            if (focused == null)
+            var selected = GetClickedCard(screenPosition);
+            if (selected == null)
             {
                 return;
             }
 
             isResolving = true;
-            focused.IsSelected = true;
+            selected.IsSelected = true;
             backgroundManager?.Awaken();
-            StartCoroutine(RevealCard(focused));
+            StartCoroutine(RevealCard(selected));
         }
 
-        private CardView GetFocusedCard()
+        private CardView GetClickedCard(Vector3 screenPosition)
         {
-            CardView bestCard = null;
-            var bestDistance = float.MaxValue;
-
-            for (var index = 0; index < cardViews.Count; index++)
+            var mainCamera = Camera.main;
+            if (mainCamera == null)
             {
-                var angle = (index - FocusIndex) * RotationStepDegrees + rotationOffset + 90f;
-                var distance = Mathf.Abs(Mathf.DeltaAngle(90f, angle));
-                if (distance < bestDistance)
+                return null;
+            }
+
+            var worldPosition = mainCamera.ScreenToWorldPoint(screenPosition);
+            var hits = Physics2D.OverlapPointAll(new Vector2(worldPosition.x, worldPosition.y));
+            CardView bestCard = null;
+            var bestSortingOrder = int.MinValue;
+
+            foreach (var hit in hits)
+            {
+                foreach (var view in cardViews)
                 {
-                    bestDistance = distance;
-                    bestCard = cardViews[index];
+                    if (!view.Transform.gameObject.activeSelf || view.IsSelected || hit != view.Collider)
+                    {
+                        continue;
+                    }
+
+                    if (view.Renderer.sortingOrder > bestSortingOrder)
+                    {
+                        bestSortingOrder = view.Renderer.sortingOrder;
+                        bestCard = view;
+                    }
                 }
             }
 
@@ -247,7 +265,7 @@ namespace Tarot.DailyReading
             var startPosition = view.Transform.localPosition;
             var startRotation = view.Transform.localRotation;
             var targetPosition = selectedAnchor.localPosition;
-            var targetScale = new Vector3(CardWidth * SelectedCardScale, CardHeight * SelectedCardScale, 1f);
+            var targetScale = new Vector3(SelectedCardScale, SelectedCardScale, 1f);
             var duration = 0.72f;
             var elapsed = 0f;
 
@@ -281,12 +299,12 @@ namespace Tarot.DailyReading
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / duration);
                 var width = Mathf.Abs(Mathf.Cos(progress * Mathf.PI));
-                view.Transform.localScale = new Vector3(CardWidth * SelectedCardScale * width, CardHeight * SelectedCardScale, 1f);
+                view.Transform.localScale = new Vector3(SelectedCardScale * width, SelectedCardScale, 1f);
 
                 if (!changedFace && progress >= 0.5f)
                 {
                     changedFace = true;
-                    view.Renderer.sprite = cardFaceSprite;
+                    view.Renderer.sprite = view.FrontSprite != null ? view.FrontSprite : fallbackCardFaceSprite;
                     view.Renderer.color = orientation == TarotOrientation.Upright
                         ? Color.white
                         : new Color(0.92f, 0.9f, 0.96f, 1f);
@@ -298,7 +316,7 @@ namespace Tarot.DailyReading
                 yield return null;
             }
 
-            view.Transform.localScale = new Vector3(CardWidth * SelectedCardScale, CardHeight * SelectedCardScale, 1f);
+            view.Transform.localScale = new Vector3(SelectedCardScale, SelectedCardScale, 1f);
         }
 
         private void ShowResult(TarotRuntimeCard card, TarotOrientation orientation)
@@ -391,7 +409,7 @@ namespace Tarot.DailyReading
         private static Sprite CreateCardSprite(Color fill, Color line, bool drawBack)
         {
             const int width = 180;
-            const int height = 280;
+            const int height = 309;
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
@@ -427,16 +445,20 @@ namespace Tarot.DailyReading
 
         private sealed class CardView
         {
-            public CardView(TarotRuntimeCard card, Transform transform, SpriteRenderer renderer)
+            public CardView(TarotRuntimeCard card, Transform transform, SpriteRenderer renderer, Collider2D collider, Sprite frontSprite)
             {
                 Card = card;
                 Transform = transform;
                 Renderer = renderer;
+                Collider = collider;
+                FrontSprite = frontSprite;
             }
 
             public TarotRuntimeCard Card { get; }
             public Transform Transform { get; }
             public SpriteRenderer Renderer { get; }
+            public Collider2D Collider { get; }
+            public Sprite FrontSprite { get; }
             public bool IsSelected { get; set; }
         }
     }

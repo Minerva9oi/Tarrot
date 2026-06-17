@@ -1,0 +1,172 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a242bb0b9de24a5daf1d48384ac2fd1, type: 3}
+  m_Name: DefaultCardDeckArt
+  m_EditorClassIdentifier: Assembly-CSharp::Tarot.Cards.CardDeckArtData
+  cardBackSprite: {fileID: 0}
+  frontSprites:
+  - cardId: major_00_fool
+    frontSprite: {fileID: 21300000, guid: 4724c10d363e94c2f9782ea710352c19, type: 3}
+  - cardId: major_01_magician
+    frontSprite: {fileID: 21300000, guid: 6e18818b26bbf41ab817f91a0423b4a1, type: 3}
+  - cardId: major_02_high_priestess
+    frontSprite: {fileID: 21300000, guid: b434d8e103e264737818a8d26b77940d, type: 3}
+  - cardId: major_03_empress
+    frontSprite: {fileID: 21300000, guid: 4866ee4c3ed99467f93c94598a8bd4aa, type: 3}
+  - cardId: major_04_emperor
+    frontSprite: {fileID: 21300000, guid: 319879628b6ef4182ba0e8f458d52896, type: 3}
+  - cardId: major_05_hierophant
+    frontSprite: {fileID: 21300000, guid: 2510111b0b98a47a1a6dc85ae6384724, type: 3}
+  - cardId: major_06_lovers
+    frontSprite: {fileID: 21300000, guid: 4965c8762009b46eba32fa857d913844, type: 3}
+  - cardId: major_07_chariot
+    frontSprite: {fileID: 21300000, guid: 2fc93ffbaade945c992a8a6e02ddb5d0, type: 3}
+  - cardId: major_08_strength
+    frontSprite: {fileID: 21300000, guid: c453fb3f803a448a2865d73ba816f425, type: 3}
+  - cardId: major_09_hermit
+    frontSprite: {fileID: 21300000, guid: a1cb6a84316e748cb9d620317cac0edf, type: 3}
+  - cardId: major_10_wheel_of_fortune
+    frontSprite: {fileID: 21300000, guid: c26c63e7c87a740b4ad323ee0ba06a2c, type: 3}
+  - cardId: major_11_justice
+    frontSprite: {fileID: 21300000, guid: 1a82e5c4510744746abd6a48e7b492ac, type: 3}
+  - cardId: major_12_hanged_man
+    frontSprite: {fileID: 21300000, guid: 9facf77f4642b4419805abb4f800c479, type: 3}
+  - cardId: major_13_death
+    frontSprite: {fileID: 21300000, guid: 04547558f46b84501873127c0b4b01a4, type: 3}
+  - cardId: major_14_temperance
+    frontSprite: {fileID: 21300000, guid: 8b9c7c3987a6344fa99229dca9b16503, type: 3}
+  - cardId: major_15_devil
+    frontSprite: {fileID: 21300000, guid: dccb7b63e74974702956c349ca486921, type: 3}
+  - cardId: major_16_tower
+    frontSprite: {fileID: 21300000, guid: 35369fdf746d8418d90197492c595a16, type: 3}
+  - cardId: major_17_star
+    frontSprite: {fileID: 21300000, guid: 57a4a0dd29fb04e73be79b41020c1314, type: 3}
+  - cardId: major_18_moon
+    frontSprite: {fileID: 21300000, guid: b45c03944933c49948dbb4b77270e176, type: 3}
+  - cardId: major_19_sun
+    frontSprite: {fileID: 21300000, guid: 1cfbfe1aeb06c487c85e3946a032efe9, type: 3}
+  - cardId: major_20_judgement
+    frontSprite: {fileID: 21300000, guid: f3109851334a441a5b4cff578571e8bf, type: 3}
+  - cardId: major_21_world
+    frontSprite: {fileID: 21300000, guid: 95d94e0ae1f1e466587c566b0e89a489, type: 3}
+  - cardId: wands_01_ace
+    frontSprite: {fileID: 21300000, guid: 976ccb154470447fb902a376938897cc, type: 3}
+  - cardId: wands_02
+    frontSprite: {fileID: 21300000, guid: 5eca5e2c602584c398b9b033e12d76ad, type: 3}
+  - cardId: wands_03
+    frontSprite: {fileID: 21300000, guid: b5675f11a9626494eb95ff81ce86d1e4, type: 3}
+  - cardId: wands_04
+    frontSprite: {fileID: 21300000, guid: af3c83dd43eda4efcbb92d8f18fa5913, type: 3}
+  - cardId: wands_05
+    frontSprite: {fileID: 21300000, guid: a7729e057d3fe4550a9c69cc3400aab7, type: 3}
+  - cardId: wands_06
+    frontSprite: {fileID: 21300000, guid: 6d9bdb784f3254b568ac9bd92a8cb39a, type: 3}
+  - cardId: wands_07
+    frontSprite: {fileID: 21300000, guid: 54736d35c465a430dab0d93b4047ba66, type: 3}
+  - cardId: wands_08
+    frontSprite: {fileID: 21300000, guid: bbdf04d9cb5e14f71af4e5dc23386a6d, type: 3}
+  - cardId: wands_09
+    frontSprite: {fileID: 21300000, guid: 1f4a4632d64cd4be99235d136e48171d, type: 3}
+  - cardId: wands_10
+    frontSprite: {fileID: 21300000, guid: 67f799a4dff60404681a7350344f446d, type: 3}
+  - cardId: wands_11_page
+    frontSprite: {fileID: 21300000, guid: 2260c5f9fc66241bab3456c25de7d094, type: 3}
+  - cardId: wands_12_knight
+    frontSprite: {fileID: 21300000, guid: 9bca4fba0a2514704b808d762028f909, type: 3}
+  - cardId: wands_13_queen
+    frontSprite: {fileID: 21300000, guid: 30b9c5e6879cf4864874419a134d5550, type: 3}
+  - cardId: wands_14_king
+    frontSprite: {fileID: 21300000, guid: 13b92d326a57c4a7eb44a16411565bc4, type: 3}
+  - cardId: cups_01_ace
+    frontSprite: {fileID: 21300000, guid: fa632c0b9aabd448ca90727a7dbf1fbc, type: 3}
+  - cardId: cups_02
+    frontSprite: {fileID: 21300000, guid: 0448b2cabc0cc438b85e36012413af3f, type: 3}
+  - cardId: cups_03
+    frontSprite: {fileID: 21300000, guid: d0a2e7c593e07438190a461762429325, type: 3}
+  - cardId: cups_04
+    frontSprite: {fileID: 21300000, guid: 588a5e7acaf404a49a92ea67044c192f, type: 3}
+  - cardId: cups_05
+    frontSprite: {fileID: 21300000, guid: 64eff0480bbb94847a8acca938b63a5c, type: 3}
+  - cardId: cups_06
+    frontSprite: {fileID: 21300000, guid: 2bcdf883267da488fa8e0acd32dd5a55, type: 3}
+  - cardId: cups_07
+    frontSprite: {fileID: 21300000, guid: 1e5d75e3588c04b3f9bc38d75de3a152, type: 3}
+  - cardId: cups_08
+    frontSprite: {fileID: 21300000, guid: 6d4882e6e50a34b878fcc86b55f3e608, type: 3}
+  - cardId: cups_09
+    frontSprite: {fileID: 21300000, guid: 0c7a1fd74e5574f058e66f286592a128, type: 3}
+  - cardId: cups_10
+    frontSprite: {fileID: 21300000, guid: 2e802cbbbf5b345eb841c57646fc3e96, type: 3}
+  - cardId: cups_11_page
+    frontSprite: {fileID: 21300000, guid: 7c2478fb6105b407a82b6cee950c4e8c, type: 3}
+  - cardId: cups_12_knight
+    frontSprite: {fileID: 21300000, guid: 9701237a231564f4faf3073b870bb320, type: 3}
+  - cardId: cups_13_queen
+    frontSprite: {fileID: 21300000, guid: c0ac4cac83f0d486691320c055d683fc, type: 3}
+  - cardId: cups_14_king
+    frontSprite: {fileID: 21300000, guid: 56121249ae4b14f0da5900583f509663, type: 3}
+  - cardId: swords_01_ace
+    frontSprite: {fileID: 21300000, guid: 2eabadb78e5d940c8a0d2db03572423c, type: 3}
+  - cardId: swords_02
+    frontSprite: {fileID: 21300000, guid: a7698fed6f17949648bfc35839ab9090, type: 3}
+  - cardId: swords_03
+    frontSprite: {fileID: 21300000, guid: 9199e116009194f6ba11af732dab9690, type: 3}
+  - cardId: swords_04
+    frontSprite: {fileID: 21300000, guid: a1f095eaf7ec848cf9d2402d861df08d, type: 3}
+  - cardId: swords_05
+    frontSprite: {fileID: 21300000, guid: 666d5e3d4069e45ae8149a4bd6dd48c1, type: 3}
+  - cardId: swords_06
+    frontSprite: {fileID: 21300000, guid: 4e350698552774347b87bb869c768870, type: 3}
+  - cardId: swords_07
+    frontSprite: {fileID: 21300000, guid: 1cf143494c925464e9a7cf1c68576781, type: 3}
+  - cardId: swords_08
+    frontSprite: {fileID: 21300000, guid: 71598a066b4254628aacfa6738ed2414, type: 3}
+  - cardId: swords_09
+    frontSprite: {fileID: 21300000, guid: e2e451f78ac694197b7c8e95a1b2711d, type: 3}
+  - cardId: swords_10
+    frontSprite: {fileID: 21300000, guid: de22523dbb361443b8f697401aedce97, type: 3}
+  - cardId: swords_11_page
+    frontSprite: {fileID: 21300000, guid: b8c15898b10d545789b836cef3b2c800, type: 3}
+  - cardId: swords_12_knight
+    frontSprite: {fileID: 21300000, guid: ab883564d6e3f4218b29a4500c40d90c, type: 3}
+  - cardId: swords_13_queen
+    frontSprite: {fileID: 21300000, guid: 9678023ce82eb4b239e9d9c234ca78e3, type: 3}
+  - cardId: swords_14_king
+    frontSprite: {fileID: 21300000, guid: 19a6da565b5844654bb49c3efad19d23, type: 3}
+  - cardId: pentacles_01_ace
+    frontSprite: {fileID: 21300000, guid: 2aa2b243aca2c48e3913d369bb0f988e, type: 3}
+  - cardId: pentacles_02
+    frontSprite: {fileID: 21300000, guid: f42437965466e4b09a90e1ebca3d9518, type: 3}
+  - cardId: pentacles_03
+    frontSprite: {fileID: 21300000, guid: a397bea23ff3842b186f172d2fbd5ba4, type: 3}
+  - cardId: pentacles_04
+    frontSprite: {fileID: 21300000, guid: 648c824e94f3b42b4a664a40948c72e9, type: 3}
+  - cardId: pentacles_05
+    frontSprite: {fileID: 21300000, guid: 22064a5dbac9d4b1bb84b412560b5121, type: 3}
+  - cardId: pentacles_06
+    frontSprite: {fileID: 21300000, guid: df379528ec5b946e3a14a5b96d408ea8, type: 3}
+  - cardId: pentacles_07
+    frontSprite: {fileID: 21300000, guid: accbac8525d2d4869854866601b3ee55, type: 3}
+  - cardId: pentacles_08
+    frontSprite: {fileID: 21300000, guid: 2b4ec8ef09b9c45da91eb87fe000c340, type: 3}
+  - cardId: pentacles_09
+    frontSprite: {fileID: 21300000, guid: dea9b9d94efe144cebfd2769768086a5, type: 3}
+  - cardId: pentacles_10
+    frontSprite: {fileID: 21300000, guid: fffb914b8fd654340bf964b053e0bf03, type: 3}
+  - cardId: pentacles_11_page
+    frontSprite: {fileID: 21300000, guid: 0f74f23a6b2ae45b2a10e0205086d54b, type: 3}
+  - cardId: pentacles_12_knight
+    frontSprite: {fileID: 21300000, guid: ac826b85d93714920b1fb73740c91bf8, type: 3}
+  - cardId: pentacles_13_queen
+    frontSprite: {fileID: 21300000, guid: 246386e279ca44d6e9a792adcab13337, type: 3}
+  - cardId: pentacles_14_king
+    frontSprite: {fileID: 21300000, guid: cb3fb288d7cb44a5ca69dc4cb8958d82, type: 3}
