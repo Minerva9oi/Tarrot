@@ -210,3 +210,6 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Enlarged the selected daily result card again and scaled the result text up with a slightly larger, lower text area to preserve the card-to-reading proportion.
 - Moved the daily result text closer to the selected card, lightened the card name by removing bold styling, and reduced the orientation label size.
 - Nudged the daily result text upward again to sit closer beneath the revealed card.
+- Moved result text slightly higher again, restored a slightly larger bold card name without character spacing, and kept the orientation label smaller.
+- Reworked unselected-card dissolution particles to sample colors from the card-back pattern so the card back breaks apart into wind-blown dust instead of generic star colors.
+- Increased the default starfield star size and idle brightness slightly.

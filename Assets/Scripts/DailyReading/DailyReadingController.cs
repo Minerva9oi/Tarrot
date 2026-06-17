@@ -13,10 +13,10 @@ namespace Tarot.DailyReading
 {
     public sealed class DailyReadingController : MonoBehaviour
     {
-        private const int ResultFontSize = 22;
+        private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindParticlesPerCard = 36;
+        private const int WindParticlesPerCard = 88;
         private const float ResultCardScale = 2.16f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
 
@@ -87,7 +87,7 @@ namespace Tarot.DailyReading
             BuildDeckController();
 
             canvas = CreateCanvas();
-            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -220f), new Vector2(920f, 154f));
+            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -204f), new Vector2(920f, 154f));
             resultText.lineSpacing = 1.04f;
             resultText.supportRichText = true;
 
@@ -156,7 +156,7 @@ namespace Tarot.DailyReading
             var cardName = FormatResultCardName(GetLocalizedCardName(card));
             var orientationText = GetLocalizedOrientation(orientation);
             resultText.text =
-                $"{cardName}  <size={ResultOrientationFontSize}>{orientationText}</size>\n" +
+                $"<b>{cardName}</b>  <size={ResultOrientationFontSize}>{orientationText}</size>\n" +
                 $"<size={ResultBodyFontSize}>{GetLocalizedKeywordsLabel()}：{GetDailyKeywords(card, orientation)}</size>\n" +
                 $"<size={ResultBodyFontSize}>{GetLocalizedReminderLabel()}：{GetDailyReminder(card, orientation)}</size>";
         }
@@ -357,23 +357,29 @@ namespace Tarot.DailyReading
         private void SpawnWindDustFromCard(CardDrawCardView view)
         {
             var start = transform.InverseTransformPoint(view.Transform.position);
-            var cardExtents = cardBackSprite.bounds.extents * view.Transform.localScale.x;
+            var cardBounds = cardBackSprite.bounds;
+            var cardScale = view.Transform.localScale.x;
+            var cardExtents = cardBounds.extents * cardScale;
             var sweepDelay = Mathf.InverseLerp(-6.5f, 6.5f, start.x) * 0.22f;
 
             for (var index = 0; index < WindParticlesPerCard; index++)
             {
+                var unscaledOffset = new Vector2(
+                    UnityEngine.Random.Range(-cardBounds.extents.x, cardBounds.extents.x),
+                    UnityEngine.Random.Range(-cardBounds.extents.y, cardBounds.extents.y));
                 var offset = new Vector3(
-                    UnityEngine.Random.Range(-cardExtents.x, cardExtents.x),
-                    UnityEngine.Random.Range(-cardExtents.y, cardExtents.y),
+                    unscaledOffset.x * cardScale,
+                    unscaledOffset.y * cardScale,
                     0f);
-                SpawnWindDust(start + offset, sweepDelay + UnityEngine.Random.Range(0f, 0.18f), UnityEngine.Random.Range(0.82f, 1.2f));
+                var dustColor = SampleCardBackDustColor(unscaledOffset, cardBounds);
+                SpawnWindDust(start + offset, sweepDelay + UnityEngine.Random.Range(0f, 0.28f), UnityEngine.Random.Range(1.2f, 1.85f), dustColor);
             }
 
-            SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.42f, sweepDelay + 0.03f, UnityEngine.Random.Range(0.82f, 1.08f));
-            SpawnWindStreak(start - Vector3.up * cardExtents.y * 0.18f, sweepDelay + 0.1f, UnityEngine.Random.Range(0.78f, 1.04f));
+            SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.42f, sweepDelay + 0.03f, UnityEngine.Random.Range(1.05f, 1.38f));
+            SpawnWindStreak(start - Vector3.up * cardExtents.y * 0.18f, sweepDelay + 0.1f, UnityEngine.Random.Range(1f, 1.32f));
         }
 
-        private void SpawnWindDust(Vector3 localStart, float delay, float duration)
+        private void SpawnWindDust(Vector3 localStart, float delay, float duration, Color litColor)
         {
             if (effectRoot == null || starParticleSprite == null)
             {
@@ -386,13 +392,12 @@ namespace Tarot.DailyReading
 
             var renderer = particle.AddComponent<SpriteRenderer>();
             renderer.sprite = starParticleSprite;
-            var litColor = StarColor();
             var invisibleColor = litColor;
             invisibleColor.a = 0f;
             renderer.color = invisibleColor;
             renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
 
-            var startScale = UnityEngine.Random.Range(0.026f, 0.062f);
+            var startScale = UnityEngine.Random.Range(0.022f, 0.054f);
             particle.transform.localScale = Vector3.one * startScale;
             StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }
@@ -421,8 +426,8 @@ namespace Tarot.DailyReading
         private static IEnumerator AnimateWindDust(Transform particle, SpriteRenderer renderer, float delay, float duration, float startScale, Color litColor)
         {
             var start = particle.localPosition;
-            var wind = new Vector3(UnityEngine.Random.Range(2.2f, 4.6f), UnityEngine.Random.Range(0.34f, 1.2f), 0f);
-            var turbulence = new Vector3(UnityEngine.Random.Range(-0.18f, 0.28f), UnityEngine.Random.Range(-0.28f, 0.36f), 0f);
+            var wind = new Vector3(UnityEngine.Random.Range(1.7f, 3.8f), UnityEngine.Random.Range(0.22f, 0.95f), 0f);
+            var turbulence = new Vector3(UnityEngine.Random.Range(-0.22f, 0.34f), UnityEngine.Random.Range(-0.22f, 0.42f), 0f);
             var phase = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
             var elapsed = 0f;
 
@@ -442,7 +447,9 @@ namespace Tarot.DailyReading
                 particle.localPosition = start + wind * t + gust;
                 particle.localScale = Vector3.one * Mathf.Lerp(startScale, startScale * 0.16f, t);
                 var color = litColor;
-                color.a = Mathf.Sin(t * Mathf.PI) * litColor.a;
+                var fadeIn = Smooth01(Mathf.InverseLerp(0f, 0.12f, t));
+                var fadeOut = 1f - Smooth01(Mathf.InverseLerp(0.28f, 1f, t));
+                color.a = litColor.a * fadeIn * fadeOut;
                 renderer.color = color;
                 yield return null;
             }
@@ -497,11 +504,33 @@ namespace Tarot.DailyReading
             }
         }
 
-        private static Color StarColor()
+        private Color SampleCardBackDustColor(Vector2 spriteLocalOffset, Bounds spriteBounds)
         {
-            var cool = new Color(0.62f, 0.78f, 1f, 0.92f);
-            var warm = new Color(1f, 0.88f, 0.52f, 0.9f);
-            return Color.Lerp(cool, warm, UnityEngine.Random.Range(0f, 1f));
+            if (cardBackSprite == null || cardBackSprite.texture == null)
+            {
+                return new Color(0.66f, 0.82f, 1f, 0.84f);
+            }
+
+            var texture = cardBackSprite.texture;
+            var rect = cardBackSprite.textureRect;
+            var normalizedX = Mathf.InverseLerp(spriteBounds.min.x, spriteBounds.max.x, spriteLocalOffset.x);
+            var normalizedY = Mathf.InverseLerp(spriteBounds.min.y, spriteBounds.max.y, spriteLocalOffset.y);
+            var textureX = Mathf.Lerp(rect.xMin, rect.xMax, normalizedX) / texture.width;
+            var textureY = Mathf.Lerp(rect.yMin, rect.yMax, normalizedY) / texture.height;
+            var sampled = texture.GetPixelBilinear(textureX, textureY);
+            var luminance = sampled.r * 0.2126f + sampled.g * 0.7152f + sampled.b * 0.0722f;
+
+            if (luminance < 0.18f)
+            {
+                sampled = Color.Lerp(sampled, new Color(0.32f, 0.38f, 0.58f, 1f), 0.55f);
+            }
+            else
+            {
+                sampled = Color.Lerp(sampled, Color.white, 0.08f);
+            }
+
+            sampled.a = Mathf.Lerp(0.72f, 0.98f, Mathf.Clamp01(luminance * 1.4f));
+            return sampled;
         }
 
         private string GetLocalizedCardName(TarotRuntimeCard card)
@@ -516,7 +545,7 @@ namespace Tarot.DailyReading
                 return cardName.ToUpperInvariant();
             }
 
-            return string.Join(" ", cardName.ToCharArray());
+            return cardName;
         }
 
         private string GetLocalizedOrientation(TarotOrientation orientation)

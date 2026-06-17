@@ -10,8 +10,8 @@ namespace Tarot.Appearance
         private const int PlacementAttempts = 16;
         private const float MinStarDistance = 0.42f;
         private const int StarfieldSeed = 20260616;
-        private const float IdleBrightnessMultiplier = 1.22f;
-        private const float StarSizeMultiplier = 1.35f;
+        private const float IdleBrightnessMultiplier = 1.38f;
+        private const float StarSizeMultiplier = 1.52f;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
         [SerializeField] private Color starColor = new(0.88f, 0.92f, 1f, 1f);
