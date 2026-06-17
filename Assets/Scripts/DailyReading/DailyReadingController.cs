@@ -15,6 +15,7 @@ namespace Tarot.DailyReading
     {
         private const int ResultFontSize = 22;
         private const int ResultBodyFontSize = 18;
+        private const int ResultOrientationFontSize = 16;
         private const int WindParticlesPerCard = 36;
         private const float ResultCardScale = 2.16f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -86,7 +87,7 @@ namespace Tarot.DailyReading
             BuildDeckController();
 
             canvas = CreateCanvas();
-            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -326f), new Vector2(920f, 154f));
+            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -250f), new Vector2(920f, 154f));
             resultText.lineSpacing = 1.04f;
             resultText.supportRichText = true;
 
@@ -155,7 +156,7 @@ namespace Tarot.DailyReading
             var cardName = FormatResultCardName(GetLocalizedCardName(card));
             var orientationText = GetLocalizedOrientation(orientation);
             resultText.text =
-                $"<b>{cardName}</b>  {orientationText}\n" +
+                $"{cardName}  <size={ResultOrientationFontSize}>{orientationText}</size>\n" +
                 $"<size={ResultBodyFontSize}>{GetLocalizedKeywordsLabel()}：{GetDailyKeywords(card, orientation)}</size>\n" +
                 $"<size={ResultBodyFontSize}>{GetLocalizedReminderLabel()}：{GetDailyReminder(card, orientation)}</size>";
         }
