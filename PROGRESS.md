@@ -181,3 +181,10 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Retuned the shared draw-layout proportions toward the reference photo, with slimmer card scale, a wider upper arc, and matching selected-card size.
 - Restyled the daily reading result text so the card name is single-language, lightly tracked, bolded, and positioned closer beneath the selected card.
 - Increased the result card-name and body text sizes so the name better matches the card-face title scale while preserving hierarchy.
+
+### 2026-06-17 - Shared Card Draw System Preservation
+
+- Extracted the current arc-shaped card deck interaction into a reusable shared draw controller.
+- Preserved scroll rotation, drag rotation, click-to-select, responsive arc layout, and selected-card metadata for future spread modes.
+- Updated daily reading to consume the shared draw controller while keeping its own result text and reveal flow.
+- Kept the current draw-layout profile as the reusable baseline for future `牌阵占卜` modes.

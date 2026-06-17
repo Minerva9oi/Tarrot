@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using Tarot.Appearance;
 using Tarot.Cards;
 using Tarot.Localization;
@@ -13,9 +12,6 @@ namespace Tarot.DailyReading
 {
     public sealed class DailyReadingController : MonoBehaviour, ICardDrawLayoutProvider
     {
-        private const int FocusIndex = 39;
-        private const float RotationStepDegrees = 360f / 78f;
-        private const float DragSelectThreshold = 12f;
         private const int ResultFontSize = 18;
         private const int ResultBodyFontSize = 15;
 
@@ -28,23 +24,15 @@ namespace Tarot.DailyReading
         [SerializeField] private Color cardDimColor = new(0.42f, 0.44f, 0.52f, 0.88f);
         [SerializeField] private Color focusColor = new(1f, 0.92f, 0.68f, 1f);
 
-        private readonly List<CardView> cardViews = new();
         private Font defaultFont;
-        private Transform ringRoot;
         private Transform selectedAnchor;
+        private CardDrawDeckController deckController;
         private Canvas canvas;
         private Text resultText;
-        private float rotationOffset;
-        private bool isDragging;
-        private bool dragExceededThreshold;
-        private bool pointerDownOverUi;
         private bool isResolving;
-        private Vector3 lastMousePosition;
-        private Vector3 mouseDownPosition;
         private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
         private Sprite fallbackCardFaceSprite;
-        private DeckLayoutMetrics layoutMetrics;
 
         public event Action BackRequested;
         public CardDrawLayoutProfile DrawLayout => GetDrawLayout();
@@ -60,20 +48,12 @@ namespace Tarot.DailyReading
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
 
             BuildScene();
-            BuildDeckRing();
             SetResultVisible(false);
         }
 
         private void Update()
         {
-            if (isResolving)
-            {
-                return;
-            }
-
             ApplyResponsiveLayout();
-            HandleRotationInput();
-            UpdateCardLayout();
         }
 
         public void SetBackgroundManager(BackgroundManager manager)
@@ -84,8 +64,8 @@ namespace Tarot.DailyReading
         public void SetDrawLayout(CardDrawLayoutProfile layout)
         {
             drawLayout = layout ?? CardDrawLayoutProfile.CreateDefault();
+            deckController?.SetDrawLayout(drawLayout);
             ApplyResponsiveLayout();
-            UpdateCardLayout();
         }
 
         public void SetLocale(LocaleId locale)
@@ -95,14 +75,12 @@ namespace Tarot.DailyReading
 
         private void BuildScene()
         {
-            ringRoot = new GameObject("Daily Card Ring").transform;
-            ringRoot.SetParent(transform, false);
-            ringRoot.localPosition = Vector3.zero;
-
             selectedAnchor = new GameObject("Selected Card Anchor").transform;
             selectedAnchor.SetParent(transform, false);
             selectedAnchor.localPosition = Vector3.zero;
             ApplyResponsiveLayout();
+
+            BuildDeckController();
 
             canvas = CreateCanvas();
             resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -305f), new Vector2(820f, 132f));
@@ -111,6 +89,21 @@ namespace Tarot.DailyReading
 
             CreateButton(canvas.transform, "返回", new Vector2(-790f, -456f), () => BackRequested?.Invoke());
             CreateButton(canvas.transform, "再抽一次", new Vector2(790f, -456f), ResetReading);
+        }
+
+        private void BuildDeckController()
+        {
+            var deckObject = new GameObject("Shared Card Draw Deck");
+            deckObject.transform.SetParent(transform, false);
+            deckController = deckObject.AddComponent<CardDrawDeckController>();
+            deckController.CardSelected += HandleCardSelected;
+            deckController.Initialize(
+                GetDrawLayout(),
+                TarotRuntimeDeck.Cards,
+                cardBackSprite,
+                card => cardDeckArt != null ? cardDeckArt.GetFrontSprite(card.CardId) : null,
+                cardDimColor,
+                focusColor);
         }
 
         private Canvas CreateCanvas()
@@ -131,157 +124,14 @@ namespace Tarot.DailyReading
             return createdCanvas;
         }
 
-        private void BuildDeckRing()
+        private void HandleCardSelected(CardDrawCardView selected)
         {
-            var cards = TarotRuntimeDeck.Cards;
-            for (var index = 0; index < cards.Count; index++)
-            {
-                var cardObject = new GameObject($"Ring Card {index:00} {cards[index].EnglishName}");
-                cardObject.transform.SetParent(ringRoot, false);
-
-                var renderer = cardObject.AddComponent<SpriteRenderer>();
-                renderer.sprite = cardBackSprite;
-                renderer.sortingOrder = index;
-
-                var collider = cardObject.AddComponent<BoxCollider2D>();
-                collider.size = cardBackSprite.bounds.size;
-
-                var frontSprite = cardDeckArt != null ? cardDeckArt.GetFrontSprite(cards[index].CardId) : null;
-                var view = new CardView(cards[index], cardObject.transform, renderer, collider, frontSprite);
-                cardViews.Add(view);
-            }
-
-            UpdateCardLayout();
-        }
-
-        private void HandleRotationInput()
-        {
-            var scroll = UnityEngine.Input.mouseScrollDelta.y;
-            if (Mathf.Abs(scroll) > 0.01f)
-            {
-                rotationOffset += scroll * RotationStepDegrees;
-            }
-
-            if (UnityEngine.Input.GetMouseButtonDown(0))
-            {
-                pointerDownOverUi = IsPointerOverUi();
-                isDragging = true;
-                dragExceededThreshold = false;
-                mouseDownPosition = UnityEngine.Input.mousePosition;
-                lastMousePosition = UnityEngine.Input.mousePosition;
-            }
-
-            if (UnityEngine.Input.GetMouseButtonUp(0))
-            {
-                isDragging = false;
-                if (!pointerDownOverUi && !dragExceededThreshold && !IsPointerOverUi())
-                {
-                    TrySelectClickedCard(UnityEngine.Input.mousePosition);
-                }
-            }
-
-            if (isDragging)
-            {
-                var delta = UnityEngine.Input.mousePosition - lastMousePosition;
-                if (Vector3.Distance(UnityEngine.Input.mousePosition, mouseDownPosition) > DragSelectThreshold)
-                {
-                    dragExceededThreshold = true;
-                }
-
-                rotationOffset += delta.x * 0.08f;
-                lastMousePosition = UnityEngine.Input.mousePosition;
-            }
-        }
-
-        private static bool IsPointerOverUi()
-        {
-            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-            return eventSystem != null && eventSystem.IsPointerOverGameObject();
-        }
-
-        private void UpdateCardLayout()
-        {
-            var layout = GetDrawLayout();
-            var halfVisibleArc = Mathf.Max(0.01f, layoutMetrics.VisibleArcDegrees * 0.5f);
-
-            for (var index = 0; index < cardViews.Count; index++)
-            {
-                var angle = (index - FocusIndex) * RotationStepDegrees + rotationOffset + 90f;
-                var normalizedAngle = Mathf.DeltaAngle(90f, angle);
-                var isVisible = Mathf.Abs(normalizedAngle) <= halfVisibleArc;
-                var view = cardViews[index];
-                view.Transform.gameObject.SetActive(isVisible);
-
-                if (!isVisible || view.IsSelected)
-                {
-                    continue;
-                }
-
-                var radians = angle * Mathf.Deg2Rad;
-                var position = new Vector3(
-                    Mathf.Cos(radians) * layoutMetrics.RingRadius,
-                    Mathf.Sin(radians) * layoutMetrics.RingRadius + layoutMetrics.RingYOffset,
-                    0f);
-                var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / halfVisibleArc);
-                var tint = Color.Lerp(cardDimColor, focusColor, 0.2f + centerProximity * 0.22f);
-                tint.a = Mathf.Lerp(0.72f, 0.96f, centerProximity);
-
-                view.Transform.localPosition = position;
-                view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
-                view.Transform.localScale = new Vector3(layout.RingCardScale, layout.RingCardScale, 1f);
-                view.Renderer.color = tint;
-                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f);
-            }
-        }
-
-        private void TrySelectClickedCard(Vector3 screenPosition)
-        {
-            var selected = GetClickedCard(screenPosition);
-            if (selected == null)
-            {
-                return;
-            }
-
             isResolving = true;
-            selected.IsSelected = true;
             backgroundManager?.Awaken();
             StartCoroutine(RevealCard(selected));
         }
 
-        private CardView GetClickedCard(Vector3 screenPosition)
-        {
-            var mainCamera = Camera.main;
-            if (mainCamera == null)
-            {
-                return null;
-            }
-
-            var worldPosition = mainCamera.ScreenToWorldPoint(screenPosition);
-            var hits = Physics2D.OverlapPointAll(new Vector2(worldPosition.x, worldPosition.y));
-            CardView bestCard = null;
-            var bestSortingOrder = int.MinValue;
-
-            foreach (var hit in hits)
-            {
-                foreach (var view in cardViews)
-                {
-                    if (!view.Transform.gameObject.activeSelf || view.IsSelected || hit != view.Collider)
-                    {
-                        continue;
-                    }
-
-                    if (view.Renderer.sortingOrder > bestSortingOrder)
-                    {
-                        bestSortingOrder = view.Renderer.sortingOrder;
-                        bestCard = view;
-                    }
-                }
-            }
-
-            return bestCard;
-        }
-
-        private IEnumerator RevealCard(CardView view)
+        private IEnumerator RevealCard(CardDrawCardView view)
         {
             var startPosition = view.Transform.localPosition;
             var startRotation = view.Transform.localRotation;
@@ -310,7 +160,7 @@ namespace Tarot.DailyReading
             backgroundManager?.Restore();
         }
 
-        private IEnumerator FlipCard(CardView view, TarotOrientation orientation)
+        private IEnumerator FlipCard(CardDrawCardView view, TarotOrientation orientation)
         {
             var duration = 0.5f;
             var elapsed = 0f;
@@ -356,18 +206,11 @@ namespace Tarot.DailyReading
 
         private void ResetReading()
         {
-            foreach (var view in cardViews)
-            {
-                view.IsSelected = false;
-                view.Renderer.sprite = cardBackSprite;
-                view.Renderer.color = cardDimColor;
-            }
-
+            deckController?.ResetDeck();
             resultText.text = string.Empty;
             SetResultVisible(false);
             isResolving = false;
             backgroundManager?.SetIdle();
-            UpdateCardLayout();
         }
 
         private void SetResultVisible(bool isVisible)
@@ -447,32 +290,13 @@ namespace Tarot.DailyReading
             var mainCamera = Camera.main;
             if (mainCamera == null || !mainCamera.orthographic)
             {
-                layoutMetrics = new DeckLayoutMetrics(34f, -30.8f, layout.VisibleArcDegrees);
                 return;
             }
-
-            var halfHeight = mainCamera.orthographicSize;
-            var halfWidth = halfHeight * mainCamera.aspect;
-            var ringRadius = Mathf.Max(0.01f, halfHeight * layout.RingRadiusHalfHeightMultiplier);
-            var ringYOffset = halfHeight * layout.RingCenterYOffsetHalfHeightMultiplier;
-            var visibleArcDegrees = GetResponsiveVisibleArcDegrees(layout, halfWidth, ringRadius);
-
-            layoutMetrics = new DeckLayoutMetrics(ringRadius, ringYOffset, visibleArcDegrees);
 
             if (selectedAnchor != null)
             {
                 selectedAnchor.localPosition = ViewportToLocalWorldPoint(mainCamera, layout.SelectedCardViewportPosition);
             }
-        }
-
-        private float GetResponsiveVisibleArcDegrees(CardDrawLayoutProfile layout, float halfWidth, float ringRadius)
-        {
-            var cardHalfWidth = cardBackSprite != null
-                ? cardBackSprite.bounds.extents.x * layout.RingCardScale
-                : 0.5f * layout.RingCardScale;
-            var allowedHalfWidth = halfWidth + cardHalfWidth * layout.EdgeCropAllowance;
-            var maxHalfArc = Mathf.Asin(Mathf.Clamp01(allowedHalfWidth / ringRadius)) * Mathf.Rad2Deg;
-            return Mathf.Min(layout.VisibleArcDegrees, maxHalfArc * 2f);
         }
 
         private Vector3 ViewportToLocalWorldPoint(Camera mainCamera, Vector2 viewportPosition)
@@ -791,37 +615,5 @@ namespace Tarot.DailyReading
             return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 180f);
         }
 
-        private sealed class CardView
-        {
-            public CardView(TarotRuntimeCard card, Transform transform, SpriteRenderer renderer, Collider2D collider, Sprite frontSprite)
-            {
-                Card = card;
-                Transform = transform;
-                Renderer = renderer;
-                Collider = collider;
-                FrontSprite = frontSprite;
-            }
-
-            public TarotRuntimeCard Card { get; }
-            public Transform Transform { get; }
-            public SpriteRenderer Renderer { get; }
-            public Collider2D Collider { get; }
-            public Sprite FrontSprite { get; }
-            public bool IsSelected { get; set; }
-        }
-
-        private readonly struct DeckLayoutMetrics
-        {
-            public DeckLayoutMetrics(float ringRadius, float ringYOffset, float visibleArcDegrees)
-            {
-                RingRadius = ringRadius;
-                RingYOffset = ringYOffset;
-                VisibleArcDegrees = visibleArcDegrees;
-            }
-
-            public float RingRadius { get; }
-            public float RingYOffset { get; }
-            public float VisibleArcDegrees { get; }
-        }
     }
 }
