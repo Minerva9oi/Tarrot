@@ -13,10 +13,10 @@ namespace Tarot.DailyReading
 {
     public sealed class DailyReadingController : MonoBehaviour
     {
-        private const int ResultFontSize = 18;
-        private const int ResultBodyFontSize = 15;
+        private const int ResultFontSize = 22;
+        private const int ResultBodyFontSize = 18;
         private const int WindParticlesPerCard = 36;
-        private const float ResultCardScale = 1.92f;
+        private const float ResultCardScale = 2.16f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -86,8 +86,8 @@ namespace Tarot.DailyReading
             BuildDeckController();
 
             canvas = CreateCanvas();
-            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -305f), new Vector2(820f, 132f));
-            resultText.lineSpacing = 1.02f;
+            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -326f), new Vector2(920f, 154f));
+            resultText.lineSpacing = 1.04f;
             resultText.supportRichText = true;
 
             CreateButton(canvas.transform, "返回", new Vector2(-790f, -456f), () => BackRequested?.Invoke());

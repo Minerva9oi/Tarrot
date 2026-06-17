@@ -207,3 +207,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Retuned the p1 branch away from an external fan shape toward an inside-the-card-circle perspective, with side cards feeling closer while preserving card gaps.
 - Enlarged the daily deck cards, moved the visible deck band closer to screen center, and projected the visible cards along a longer-radius circle so larger cards keep clear spacing.
 - Increased the long-radius daily deck spacing again and added subtle trapezoid deformation only to the edge cards to imply a surrounding circle without exaggerating perspective.
+- Enlarged the selected daily result card again and scaled the result text up with a slightly larger, lower text area to preserve the card-to-reading proportion.
