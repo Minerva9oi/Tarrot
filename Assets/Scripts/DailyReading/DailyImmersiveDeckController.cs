@@ -21,9 +21,11 @@ namespace Tarot.DailyReading
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly Dictionary<CardDrawCardView, DailyCardTrapezoidRenderer> trapezoidViews = new();
+        private readonly List<TarotRuntimeCard> sourceCards = new();
         private Sprite cardBackSprite;
         private Color cardDimColor;
         private Color focusColor;
+        private Func<TarotRuntimeCard, Sprite> frontSpriteProvider;
         private float rotationOffset;
         private bool inputEnabled = true;
         private bool isDragging;
@@ -64,8 +66,13 @@ namespace Tarot.DailyReading
             cardBackSprite = backSprite;
             cardDimColor = dimColor;
             focusColor = selectedFocusColor;
-            ClearDeck();
-            BuildDeck(cards, frontSpriteProvider);
+            this.frontSpriteProvider = frontSpriteProvider;
+            sourceCards.Clear();
+            if (cards != null)
+            {
+                sourceCards.AddRange(cards);
+            }
+
             ResetDeck();
         }
 
@@ -89,6 +96,8 @@ namespace Tarot.DailyReading
         {
             rotationOffset = 0f;
             layoutFrozen = false;
+            ClearDeck();
+            BuildDeck(TarotDeckShuffler.CreateShuffledCopy(sourceCards), frontSpriteProvider);
 
             foreach (var view in cardViews)
             {

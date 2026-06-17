@@ -214,3 +214,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Reworked unselected-card dissolution particles to sample colors from the card-back pattern so the card back breaks apart into wind-blown dust instead of generic star colors.
 - Increased the default starfield star size and idle brightness slightly.
 - Shuffled the daily reading deck order each time the daily deck is created so card positions feel freshly randomized like a shuffled deck.
+- Added shared tarot deck shuffling and rebuilt both daily and shared draw decks on reset so `再抽一次` and future spread modes get a fresh shuffled order.

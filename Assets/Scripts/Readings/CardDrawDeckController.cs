@@ -12,10 +12,12 @@ namespace Tarot.Readings
         private const float DragSelectThreshold = 12f;
 
         private readonly List<CardDrawCardView> cardViews = new();
+        private readonly List<TarotRuntimeCard> sourceCards = new();
         private CardDrawLayoutProfile drawLayout = CardDrawLayoutProfile.CreateDefault();
         private Sprite cardBackSprite;
         private Color cardDimColor;
         private Color focusColor;
+        private Func<TarotRuntimeCard, Sprite> frontSpriteProvider;
         private DeckLayoutMetrics layoutMetrics;
         private float rotationOffset;
         private bool isDragging;
@@ -59,8 +61,14 @@ namespace Tarot.Readings
             cardBackSprite = backSprite;
             cardDimColor = dimColor;
             focusColor = selectedFocusColor;
-            ClearDeck();
-            BuildDeck(cards, frontSpriteProvider);
+            this.frontSpriteProvider = frontSpriteProvider;
+            sourceCards.Clear();
+            if (cards != null)
+            {
+                sourceCards.AddRange(cards);
+            }
+
+            ResetDeck();
             ApplyResponsiveLayout();
             UpdateCardLayout();
         }
@@ -82,6 +90,8 @@ namespace Tarot.Readings
         public void ResetDeck()
         {
             rotationOffset = 0f;
+            ClearDeck();
+            BuildDeck(TarotDeckShuffler.CreateShuffledCopy(sourceCards), frontSpriteProvider);
 
             foreach (var view in cardViews)
             {
