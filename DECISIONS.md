@@ -111,3 +111,22 @@ Impact:
 - The default starfield is implemented as a background theme.
 - Advanced backgrounds may respond to reading events such as awaken, gather, and restore.
 - Simpler custom backgrounds can skip advanced effects and rely on generic foreground particles later.
+
+## 2026-06-17 - Give Daily Reading Its Own Immersive Deck
+
+Reason:
+
+- Daily reading should feel more intimate and ritual-focused than reusable spread readings.
+- The existing arc-shaped shared deck should remain stable for future `牌阵占卜` modes.
+- A 2.5D daily-only deck can create the feeling of standing inside a circular deck without moving the project into full 3D.
+
+Rejected:
+
+- Reusing the shared `CardDrawDeckController` for daily reading by changing its layout parameters.
+- Building the daily deck as a true 3D card ring for this stage.
+
+Impact:
+
+- Daily reading uses a dedicated immersive deck controller.
+- Spread reading modes continue to use the shared draw deck system.
+- Daily reveal effects can be stronger without changing future spread-mode behavior.

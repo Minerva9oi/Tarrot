@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using Tarot.Appearance;
 using Tarot.Cards;
 using Tarot.Localization;
@@ -10,14 +11,16 @@ using UnityEngine.UI;
 
 namespace Tarot.DailyReading
 {
-    public sealed class DailyReadingController : MonoBehaviour, ICardDrawLayoutProvider
+    public sealed class DailyReadingController : MonoBehaviour
     {
         private const int ResultFontSize = 18;
         private const int ResultBodyFontSize = 15;
+        private const int StarParticlesPerCard = 8;
+        private const float ResultCardScale = 1.68f;
+        private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.53f);
 
         [SerializeField] private BackgroundManager backgroundManager;
         [SerializeField] private LocaleId currentLocale = LocaleId.SimplifiedChinese;
-        [SerializeField] private CardDrawLayoutProfile drawLayout = CardDrawLayoutProfile.CreateDefault();
         [SerializeField] private Color cardBackColor = new(0.035f, 0.038f, 0.052f, 1f);
         [SerializeField] private Color cardFaceColor = new(0.86f, 0.84f, 0.78f, 1f);
         [SerializeField] private Color cardLineColor = new(0.78f, 0.68f, 0.48f, 1f);
@@ -26,16 +29,18 @@ namespace Tarot.DailyReading
 
         private Font defaultFont;
         private Transform selectedAnchor;
-        private CardDrawDeckController deckController;
+        private Transform effectRoot;
+        private DailyImmersiveDeckController deckController;
         private Canvas canvas;
         private Text resultText;
         private bool isResolving;
         private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
         private Sprite fallbackCardFaceSprite;
+        private Sprite starParticleSprite;
+        private Sprite starStreamSprite;
 
         public event Action BackRequested;
-        public CardDrawLayoutProfile DrawLayout => GetDrawLayout();
 
         private void Awake()
         {
@@ -46,6 +51,8 @@ namespace Tarot.DailyReading
             cardDeckArt = CardDeckArtData.LoadDefault();
             cardBackSprite = CreateCardSprite(cardBackColor, cardLineColor, true);
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
+            starParticleSprite = CreateStarParticleSprite();
+            starStreamSprite = CreateStarStreamSprite();
 
             BuildScene();
             SetResultVisible(false);
@@ -61,13 +68,6 @@ namespace Tarot.DailyReading
             backgroundManager = manager;
         }
 
-        public void SetDrawLayout(CardDrawLayoutProfile layout)
-        {
-            drawLayout = layout ?? CardDrawLayoutProfile.CreateDefault();
-            deckController?.SetDrawLayout(drawLayout);
-            ApplyResponsiveLayout();
-        }
-
         public void SetLocale(LocaleId locale)
         {
             currentLocale = locale;
@@ -79,6 +79,9 @@ namespace Tarot.DailyReading
             selectedAnchor.SetParent(transform, false);
             selectedAnchor.localPosition = Vector3.zero;
             ApplyResponsiveLayout();
+
+            effectRoot = new GameObject("Daily Star Reveal Effects").transform;
+            effectRoot.SetParent(transform, false);
 
             BuildDeckController();
 
@@ -93,12 +96,11 @@ namespace Tarot.DailyReading
 
         private void BuildDeckController()
         {
-            var deckObject = new GameObject("Shared Card Draw Deck");
+            var deckObject = new GameObject("Daily Immersive Draw Deck");
             deckObject.transform.SetParent(transform, false);
-            deckController = deckObject.AddComponent<CardDrawDeckController>();
+            deckController = deckObject.AddComponent<DailyImmersiveDeckController>();
             deckController.CardSelected += HandleCardSelected;
             deckController.Initialize(
-                GetDrawLayout(),
                 TarotRuntimeDeck.Cards,
                 cardBackSprite,
                 card => cardDeckArt != null ? cardDeckArt.GetFrontSprite(card.CardId) : null,
@@ -126,71 +128,26 @@ namespace Tarot.DailyReading
 
         private void HandleCardSelected(CardDrawCardView selected)
         {
+            if (isResolving)
+            {
+                return;
+            }
+
             isResolving = true;
+            deckController?.SetLayoutFrozen(true);
             backgroundManager?.Awaken();
             StartCoroutine(RevealCard(selected));
         }
 
         private IEnumerator RevealCard(CardDrawCardView view)
         {
-            var startPosition = view.Transform.localPosition;
-            var startRotation = view.Transform.localRotation;
             var targetPosition = selectedAnchor.localPosition;
-            var selectedCardScale = GetDrawLayout().SelectedCardScale;
-            var targetScale = new Vector3(selectedCardScale, selectedCardScale, 1f);
-            var duration = 0.72f;
-            var elapsed = 0f;
-
-            view.Transform.gameObject.SetActive(true);
-            view.Renderer.sortingOrder = 2000;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                var t = Smooth01(elapsed / duration);
-                view.Transform.localPosition = Vector3.Lerp(startPosition, targetPosition, t);
-                view.Transform.localRotation = Quaternion.Slerp(startRotation, Quaternion.identity, t);
-                view.Transform.localScale = Vector3.Lerp(view.Transform.localScale, targetScale, t);
-                yield return null;
-            }
-
             var orientation = UnityEngine.Random.value > 0.5f ? TarotOrientation.Upright : TarotOrientation.Reversed;
-            yield return FlipCard(view, orientation);
+            backgroundManager?.GatherTo(transform.TransformPoint(targetPosition));
+
+            yield return DissolveVisibleCardsToStars(view, targetPosition, orientation);
             ShowResult(view.Card, orientation);
             backgroundManager?.Restore();
-        }
-
-        private IEnumerator FlipCard(CardDrawCardView view, TarotOrientation orientation)
-        {
-            var duration = 0.5f;
-            var elapsed = 0f;
-            var changedFace = false;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                var progress = Mathf.Clamp01(elapsed / duration);
-                var width = Mathf.Abs(Mathf.Cos(progress * Mathf.PI));
-                var selectedCardScale = GetDrawLayout().SelectedCardScale;
-                view.Transform.localScale = new Vector3(selectedCardScale * width, selectedCardScale, 1f);
-
-                if (!changedFace && progress >= 0.5f)
-                {
-                    changedFace = true;
-                    view.Renderer.sprite = view.FrontSprite != null ? view.FrontSprite : fallbackCardFaceSprite;
-                    view.Renderer.color = orientation == TarotOrientation.Upright
-                        ? Color.white
-                        : new Color(0.92f, 0.9f, 0.96f, 1f);
-                    view.Transform.localRotation = orientation == TarotOrientation.Upright
-                        ? Quaternion.identity
-                        : Quaternion.Euler(0f, 0f, 180f);
-                }
-
-                yield return null;
-            }
-
-            var finalSelectedCardScale = GetDrawLayout().SelectedCardScale;
-            view.Transform.localScale = new Vector3(finalSelectedCardScale, finalSelectedCardScale, 1f);
         }
 
         private void ShowResult(TarotRuntimeCard card, TarotOrientation orientation)
@@ -206,6 +163,7 @@ namespace Tarot.DailyReading
 
         private void ResetReading()
         {
+            ClearEffectParticles();
             deckController?.ResetDeck();
             resultText.text = string.Empty;
             SetResultVisible(false);
@@ -274,19 +232,8 @@ namespace Tarot.DailyReading
             return value * value * (3f - 2f * value);
         }
 
-        private CardDrawLayoutProfile GetDrawLayout()
-        {
-            if (drawLayout == null)
-            {
-                drawLayout = CardDrawLayoutProfile.CreateDefault();
-            }
-
-            return drawLayout;
-        }
-
         private void ApplyResponsiveLayout()
         {
-            var layout = GetDrawLayout();
             var mainCamera = Camera.main;
             if (mainCamera == null || !mainCamera.orthographic)
             {
@@ -295,7 +242,7 @@ namespace Tarot.DailyReading
 
             if (selectedAnchor != null)
             {
-                selectedAnchor.localPosition = ViewportToLocalWorldPoint(mainCamera, layout.SelectedCardViewportPosition);
+                selectedAnchor.localPosition = ViewportToLocalWorldPoint(mainCamera, SelectedCardViewportPosition);
             }
         }
 
@@ -305,6 +252,219 @@ namespace Tarot.DailyReading
             var worldPosition = mainCamera.ViewportToWorldPoint(new Vector3(viewportPosition.x, viewportPosition.y, depth));
             worldPosition.z = 0f;
             return transform.InverseTransformPoint(worldPosition);
+        }
+
+        private IEnumerator DissolveVisibleCardsToStars(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
+        {
+            const float duration = 1.18f;
+            var elapsed = 0f;
+            var dissolvingCards = new List<CardDrawCardView>();
+
+            foreach (var view in deckController.CardViews)
+            {
+                if (!view.Transform.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                if (view == selected)
+                {
+                    var color = view.Renderer.color;
+                    color.a = 0f;
+                    view.Renderer.color = color;
+                    continue;
+                }
+
+                dissolvingCards.Add(view);
+                SpawnStarsFromCard(view, targetPosition);
+            }
+
+            PrepareSelectedResultCard(selected, targetPosition, orientation);
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Mathf.Clamp01(elapsed / duration);
+                var revealProgress = Smooth01(Mathf.InverseLerp(0.42f, 1f, progress));
+
+                foreach (var view in dissolvingCards)
+                {
+                    var color = view.Renderer.color;
+                    color.a = Mathf.Lerp(0.82f, 0f, Smooth01(progress));
+                    view.Renderer.color = color;
+                    view.Transform.localScale *= Mathf.Lerp(1f, 0.996f, progress);
+                }
+
+                selected.Transform.localScale = Vector3.one * Mathf.Lerp(ResultCardScale * 0.86f, ResultCardScale, revealProgress);
+                var selectedColor = orientation == TarotOrientation.Upright
+                    ? Color.white
+                    : new Color(0.92f, 0.9f, 0.96f, 1f);
+                selectedColor.a = revealProgress;
+                selected.Renderer.color = selectedColor;
+
+                yield return null;
+            }
+
+            foreach (var view in dissolvingCards)
+            {
+                view.Transform.gameObject.SetActive(false);
+            }
+
+            var finalColor = orientation == TarotOrientation.Upright
+                ? Color.white
+                : new Color(0.92f, 0.9f, 0.96f, 1f);
+            finalColor.a = 1f;
+            selected.Renderer.color = finalColor;
+            selected.Transform.localPosition = targetPosition;
+            selected.Transform.localScale = Vector3.one * ResultCardScale;
+        }
+
+        private void PrepareSelectedResultCard(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
+        {
+            selected.Transform.gameObject.SetActive(true);
+            selected.Transform.localPosition = targetPosition;
+            selected.Transform.localRotation = orientation == TarotOrientation.Upright
+                ? Quaternion.identity
+                : Quaternion.Euler(0f, 0f, 180f);
+            selected.Transform.localScale = Vector3.one * (ResultCardScale * 0.86f);
+            selected.Renderer.sprite = selected.FrontSprite != null ? selected.FrontSprite : fallbackCardFaceSprite;
+            selected.Renderer.sortingOrder = 2300;
+            selected.Renderer.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        private void SpawnStarsFromCard(CardDrawCardView view, Vector3 targetPosition)
+        {
+            var start = transform.InverseTransformPoint(view.Transform.position);
+            for (var index = 0; index < StarParticlesPerCard; index++)
+            {
+                var offset = new Vector3(
+                    UnityEngine.Random.Range(-0.42f, 0.42f),
+                    UnityEngine.Random.Range(-0.72f, 0.72f),
+                    0f) * view.Transform.localScale.x;
+                SpawnConvergingStar(start + offset, targetPosition, UnityEngine.Random.Range(0.82f, 1.24f));
+            }
+
+            SpawnStarStream(start, targetPosition, UnityEngine.Random.Range(0.72f, 1.05f));
+            SpawnStarStream(start + Vector3.up * 0.26f, targetPosition, UnityEngine.Random.Range(0.76f, 1.12f));
+        }
+
+        private void SpawnConvergingStar(Vector3 localStart, Vector3 localTarget, float duration)
+        {
+            if (effectRoot == null || starParticleSprite == null)
+            {
+                return;
+            }
+
+            var particle = new GameObject("Daily Converging Star");
+            particle.transform.SetParent(effectRoot, false);
+            particle.transform.localPosition = localStart;
+
+            var renderer = particle.AddComponent<SpriteRenderer>();
+            renderer.sprite = starParticleSprite;
+            renderer.color = StarColor();
+            renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
+
+            var startScale = UnityEngine.Random.Range(0.035f, 0.075f);
+            particle.transform.localScale = Vector3.one * startScale;
+            StartCoroutine(AnimateConvergingStar(particle.transform, renderer, localTarget, duration, startScale));
+        }
+
+        private void SpawnStarStream(Vector3 localStart, Vector3 localTarget, float duration)
+        {
+            if (effectRoot == null || starStreamSprite == null)
+            {
+                return;
+            }
+
+            var stream = new GameObject("Daily Star Stream");
+            stream.transform.SetParent(effectRoot, false);
+            stream.transform.localPosition = localStart;
+
+            var renderer = stream.AddComponent<SpriteRenderer>();
+            renderer.sprite = starStreamSprite;
+            renderer.color = new Color(0.66f, 0.82f, 1f, 0.42f);
+            renderer.sortingOrder = 2350 + UnityEngine.Random.Range(0, 80);
+
+            var direction = localTarget - localStart;
+            var angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            stream.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            stream.transform.localScale = new Vector3(UnityEngine.Random.Range(0.65f, 1.1f), UnityEngine.Random.Range(0.45f, 0.7f), 1f);
+            StartCoroutine(AnimateStarStream(stream.transform, renderer, localTarget, duration));
+        }
+
+        private static IEnumerator AnimateConvergingStar(Transform particle, SpriteRenderer renderer, Vector3 target, float duration, float startScale)
+        {
+            var start = particle.localPosition;
+            var curveOffset = new Vector3(UnityEngine.Random.Range(-0.55f, 0.55f), UnityEngine.Random.Range(0.36f, 1.1f), 0f);
+            var control = Vector3.Lerp(start, target, 0.5f) + curveOffset;
+            var startColor = renderer.color;
+            var elapsed = 0f;
+
+            while (elapsed < duration && particle != null)
+            {
+                elapsed += Time.deltaTime;
+                var t = Smooth01(elapsed / duration);
+                var a = Vector3.Lerp(start, control, t);
+                var b = Vector3.Lerp(control, target, t);
+                particle.localPosition = Vector3.Lerp(a, b, t);
+                particle.localScale = Vector3.one * Mathf.Lerp(startScale, startScale * 0.28f, t);
+                var color = startColor;
+                color.a = Mathf.Sin(t * Mathf.PI) * startColor.a;
+                renderer.color = color;
+                yield return null;
+            }
+
+            if (particle != null)
+            {
+                Destroy(particle.gameObject);
+            }
+        }
+
+        private static IEnumerator AnimateStarStream(Transform stream, SpriteRenderer renderer, Vector3 target, float duration)
+        {
+            var start = stream.localPosition;
+            var startColor = renderer.color;
+            var elapsed = 0f;
+
+            while (elapsed < duration && stream != null)
+            {
+                elapsed += Time.deltaTime;
+                var t = Smooth01(elapsed / duration);
+                stream.localPosition = Vector3.Lerp(start, target, t);
+                stream.localScale = new Vector3(
+                    Mathf.Lerp(stream.localScale.x, 0.2f, t),
+                    stream.localScale.y,
+                    1f);
+                var color = startColor;
+                color.a = Mathf.Sin(t * Mathf.PI) * startColor.a;
+                renderer.color = color;
+                yield return null;
+            }
+
+            if (stream != null)
+            {
+                Destroy(stream.gameObject);
+            }
+        }
+
+        private void ClearEffectParticles()
+        {
+            if (effectRoot == null)
+            {
+                return;
+            }
+
+            for (var index = effectRoot.childCount - 1; index >= 0; index--)
+            {
+                Destroy(effectRoot.GetChild(index).gameObject);
+            }
+        }
+
+        private static Color StarColor()
+        {
+            var cool = new Color(0.62f, 0.78f, 1f, 0.92f);
+            var warm = new Color(1f, 0.88f, 0.52f, 0.9f);
+            return Color.Lerp(cool, warm, UnityEngine.Random.Range(0f, 1f));
         }
 
         private string GetLocalizedCardName(TarotRuntimeCard card)
@@ -575,6 +735,57 @@ namespace Tarot.DailyReading
                 TarotSuit.Pentacles => "现实压力可以拆小处理，别让焦虑吞掉行动力。",
                 _ => "今天先放慢一点，照顾好自己的节奏。"
             };
+        }
+
+        private static Sprite CreateStarParticleSprite()
+        {
+            const int size = 24;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            var center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var distance = Vector2.Distance(new Vector2(x, y), center) / (size * 0.5f);
+                    var core = Mathf.Clamp01(1f - distance * 3.6f);
+                    var halo = Mathf.Clamp01(1f - distance);
+                    var alpha = Mathf.Clamp01(core + halo * halo * 0.36f);
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+        }
+
+        private static Sprite CreateStarStreamSprite()
+        {
+            const int width = 96;
+            const int height = 10;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var horizontal = Mathf.Sin((x / (float)(width - 1)) * Mathf.PI);
+                    var vertical = 1f - Mathf.Abs(y - (height - 1) * 0.5f) / (height * 0.5f);
+                    var alpha = Mathf.Clamp01(horizontal * vertical);
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 96f);
         }
 
         private static Sprite CreateCardSprite(Color fill, Color line, bool drawBack)

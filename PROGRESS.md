@@ -188,3 +188,12 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Preserved scroll rotation, drag rotation, click-to-select, responsive arc layout, and selected-card metadata for future spread modes.
 - Updated daily reading to consume the shared draw controller while keeping its own result text and reveal flow.
 - Kept the current draw-layout profile as the reusable baseline for future `牌阵占卜` modes.
+
+### 2026-06-17 - Immersive Daily Draw Deck
+
+- Added a daily-only immersive deck controller that presents the player as standing inside a circular 78-card deck.
+- Kept the existing shared card draw controller unchanged for future `牌阵占卜` modes.
+- Replaced daily reading's shared deck usage with the new 2.5D pseudo-perspective deck.
+- Preserved mouse wheel rotation, horizontal drag rotation, and direct click-to-select behavior.
+- Added a reveal flow where visible cards dissolve into star particles and streams that gather into the selected card face.
+- Kept the default starfield background event hooks active during the reveal.
