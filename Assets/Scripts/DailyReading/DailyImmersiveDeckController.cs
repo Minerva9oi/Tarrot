@@ -12,11 +12,15 @@ namespace Tarot.DailyReading
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
         private const float DragRotationMultiplier = 0.075f;
-        private const float BaseVisibleArcDegrees = 34f;
-        private const float MinimumVisibleArcDegrees = 30f;
-        private const float MaximumVisibleArcDegrees = 38f;
+        private const float BaseVisibleArcDegrees = 23f;
+        private const float MinimumVisibleArcDegrees = 20f;
+        private const float MaximumVisibleArcDegrees = 26f;
+        private const float EdgeTrapezoidStart = 0.68f;
+        private const float MaximumTrapezoidAmount = 0.13f;
+        private const float MaximumTrapezoidWidthTrim = 0.07f;
 
         private readonly List<CardDrawCardView> cardViews = new();
+        private readonly Dictionary<CardDrawCardView, DailyCardTrapezoidRenderer> trapezoidViews = new();
         private Sprite cardBackSprite;
         private Color cardDimColor;
         private Color focusColor;
@@ -75,6 +79,10 @@ namespace Tarot.DailyReading
         public void SetLayoutFrozen(bool isFrozen)
         {
             layoutFrozen = isFrozen;
+            if (isFrozen)
+            {
+                HideAllTrapezoids();
+            }
         }
 
         public void ResetDeck()
@@ -87,9 +95,11 @@ namespace Tarot.DailyReading
                 view.IsSelected = false;
                 view.Transform.localRotation = Quaternion.identity;
                 view.Transform.localScale = Vector3.one;
+                view.Renderer.enabled = true;
                 view.Renderer.sprite = cardBackSprite;
                 view.Renderer.color = cardDimColor;
                 view.Renderer.sortingOrder = 1000;
+                SetTrapezoidVisible(view, false);
             }
 
             SetInputEnabled(true);
@@ -112,7 +122,11 @@ namespace Tarot.DailyReading
                 collider.size = cardBackSprite.bounds.size;
 
                 var frontSprite = frontSpriteProvider?.Invoke(card);
-                cardViews.Add(new CardDrawCardView(card, cardObject.transform, renderer, collider, frontSprite));
+                var view = new CardDrawCardView(card, cardObject.transform, renderer, collider, frontSprite);
+                var trapezoidView = cardObject.AddComponent<DailyCardTrapezoidRenderer>();
+                trapezoidView.Initialize(renderer);
+                cardViews.Add(view);
+                trapezoidViews.Add(view, trapezoidView);
             }
         }
 
@@ -127,6 +141,7 @@ namespace Tarot.DailyReading
             }
 
             cardViews.Clear();
+            trapezoidViews.Clear();
         }
 
         private void HandleInput()
@@ -206,6 +221,7 @@ namespace Tarot.DailyReading
 
                 if (!isVisible || view.IsSelected)
                 {
+                    SetTrapezoidVisible(view, false);
                     continue;
                 }
 
@@ -224,6 +240,7 @@ namespace Tarot.DailyReading
                 view.Transform.localScale = Vector3.one * scale;
                 view.Renderer.color = tint;
                 view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 180f);
+                UpdateTrapezoid(view, sideAmount, sideProximity);
             }
         }
 
@@ -275,13 +292,13 @@ namespace Tarot.DailyReading
 
         private static float GetResponsiveVisibleArcDegrees(float aspect)
         {
-            var aspectAdjustment = Mathf.Lerp(-3f, 3f, Mathf.InverseLerp(1.35f, 2.1f, aspect));
+            var aspectAdjustment = Mathf.Lerp(-2f, 2f, Mathf.InverseLerp(1.35f, 2.1f, aspect));
             return Mathf.Clamp(BaseVisibleArcDegrees + aspectAdjustment, MinimumVisibleArcDegrees, MaximumVisibleArcDegrees);
         }
 
         private static float GetResponsiveRingRadius(float halfWidth)
         {
-            return halfWidth * 3.18f;
+            return halfWidth * 4.78f;
         }
 
         private static float GetResponsiveCenterScale(float halfWidth, float halfHeight)
@@ -295,6 +312,143 @@ namespace Tarot.DailyReading
         {
             value = Mathf.Clamp01(value);
             return value * value * (3f - 2f * value);
+        }
+
+        private void UpdateTrapezoid(CardDrawCardView view, float sideAmount, float sideProximity)
+        {
+            if (!trapezoidViews.TryGetValue(view, out var trapezoidView))
+            {
+                return;
+            }
+
+            var trapezoidProgress = Smooth01(Mathf.InverseLerp(EdgeTrapezoidStart, 1f, sideProximity));
+            if (trapezoidProgress <= 0.01f)
+            {
+                trapezoidView.SetVisible(false);
+                return;
+            }
+
+            var sideSign = Mathf.Sign(sideAmount);
+            var amount = trapezoidProgress * MaximumTrapezoidAmount;
+            var widthTrim = trapezoidProgress * MaximumTrapezoidWidthTrim;
+            trapezoidView.Render(view.Renderer.sprite, view.Renderer.color, view.Renderer.sortingOrder, sideSign, amount, widthTrim);
+        }
+
+        private void SetTrapezoidVisible(CardDrawCardView view, bool isVisible)
+        {
+            if (trapezoidViews.TryGetValue(view, out var trapezoidView))
+            {
+                trapezoidView.SetVisible(isVisible);
+            }
+        }
+
+        private void HideAllTrapezoids()
+        {
+            foreach (var view in cardViews)
+            {
+                SetTrapezoidVisible(view, false);
+            }
+        }
+    }
+
+    internal sealed class DailyCardTrapezoidRenderer : MonoBehaviour
+    {
+        private const string SpriteShaderName = "Sprites/Default";
+
+        private SpriteRenderer sourceRenderer;
+        private Mesh mesh;
+        private MeshRenderer meshRenderer;
+        private Material material;
+
+        public void Initialize(SpriteRenderer source)
+        {
+            sourceRenderer = source;
+
+            var meshFilter = gameObject.AddComponent<MeshFilter>();
+            mesh = new Mesh { name = "Daily Card Trapezoid Mesh" };
+            meshFilter.sharedMesh = mesh;
+
+            meshRenderer = gameObject.AddComponent<MeshRenderer>();
+            material = new Material(Shader.Find(SpriteShaderName));
+            meshRenderer.sharedMaterial = material;
+            SetVisible(false);
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            if (sourceRenderer != null)
+            {
+                sourceRenderer.enabled = !isVisible;
+            }
+
+            if (meshRenderer != null)
+            {
+                meshRenderer.enabled = isVisible;
+            }
+        }
+
+        public void Render(Sprite sprite, Color color, int sortingOrder, float sideSign, float amount, float widthTrim)
+        {
+            if (sprite == null || sourceRenderer == null || meshRenderer == null || material == null)
+            {
+                SetVisible(false);
+                return;
+            }
+
+            material.mainTexture = sprite.texture;
+            material.color = color;
+            meshRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
+            meshRenderer.sortingOrder = sortingOrder;
+
+            var bounds = sprite.bounds;
+            var halfWidth = bounds.extents.x;
+            var halfHeight = bounds.extents.y;
+            var innerHeight = halfHeight * Mathf.Clamp01(1f - amount);
+            var innerX = halfWidth * Mathf.Clamp01(1f - widthTrim);
+
+            Vector3 bottomLeft;
+            Vector3 topLeft;
+            Vector3 bottomRight;
+            Vector3 topRight;
+
+            if (sideSign < 0f)
+            {
+                bottomLeft = new Vector3(-halfWidth, -halfHeight, 0f);
+                topLeft = new Vector3(-halfWidth, halfHeight, 0f);
+                bottomRight = new Vector3(innerX, -innerHeight, 0f);
+                topRight = new Vector3(innerX, innerHeight, 0f);
+            }
+            else
+            {
+                bottomLeft = new Vector3(-innerX, -innerHeight, 0f);
+                topLeft = new Vector3(-innerX, innerHeight, 0f);
+                bottomRight = new Vector3(halfWidth, -halfHeight, 0f);
+                topRight = new Vector3(halfWidth, halfHeight, 0f);
+            }
+
+            mesh.Clear();
+            mesh.vertices = new[] { bottomLeft, topLeft, topRight, bottomRight };
+            mesh.uv = GetSpriteUvs(sprite);
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateBounds();
+            SetVisible(true);
+        }
+
+        private static Vector2[] GetSpriteUvs(Sprite sprite)
+        {
+            var texture = sprite.texture;
+            var rect = sprite.textureRect;
+            var xMin = rect.xMin / texture.width;
+            var xMax = rect.xMax / texture.width;
+            var yMin = rect.yMin / texture.height;
+            var yMax = rect.yMax / texture.height;
+            return new[]
+            {
+                new Vector2(xMin, yMin),
+                new Vector2(xMin, yMax),
+                new Vector2(xMax, yMax),
+                new Vector2(xMax, yMin)
+            };
         }
     }
 }
