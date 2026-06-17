@@ -17,6 +17,7 @@ namespace Tarot.Readings
         private Color cardDimColor;
         private Color focusColor;
         private DeckLayoutMetrics layoutMetrics;
+        private float rotationOffset;
         private bool isDragging;
         private bool dragExceededThreshold;
         private bool pointerDownOverUi;
@@ -80,6 +81,8 @@ namespace Tarot.Readings
 
         public void ResetDeck()
         {
+            rotationOffset = 0f;
+
             foreach (var view in cardViews)
             {
                 view.IsSelected = false;
