@@ -209,3 +209,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Increased the long-radius daily deck spacing again and added subtle trapezoid deformation only to the edge cards to imply a surrounding circle without exaggerating perspective.
 - Enlarged the selected daily result card again and scaled the result text up with a slightly larger, lower text area to preserve the card-to-reading proportion.
 - Moved the daily result text closer to the selected card, lightened the card name by removing bold styling, and reduced the orientation label size.
+- Nudged the daily result text upward again to sit closer beneath the revealed card.
