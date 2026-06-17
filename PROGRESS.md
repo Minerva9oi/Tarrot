@@ -204,3 +204,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Tuned the daily-only immersive deck toward a wider, closer p1-style half ring.
 - Reworked the daily reveal so the selected card pulls to screen center and flips larger.
 - Changed unselected visible cards from gathered star streams to dense wind-blown star-dust dissolution.
+- Retuned the p1 branch away from an external fan shape toward an inside-the-card-circle perspective, with side cards feeling closer while preserving card gaps.
