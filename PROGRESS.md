@@ -205,3 +205,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Reworked the daily reveal so the selected card pulls to screen center and flips larger.
 - Changed unselected visible cards from gathered star streams to dense wind-blown star-dust dissolution.
 - Retuned the p1 branch away from an external fan shape toward an inside-the-card-circle perspective, with side cards feeling closer while preserving card gaps.
+- Enlarged the daily deck cards, moved the visible deck band closer to screen center, and projected the visible cards along a longer-radius circle so larger cards keep clear spacing.
