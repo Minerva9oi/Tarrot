@@ -131,40 +131,40 @@ namespace Tarot.DailyReading
 
         private void HandleInput()
         {
-            var scroll = Input.mouseScrollDelta.y;
+            var scroll = UnityEngine.Input.mouseScrollDelta.y;
             if (Mathf.Abs(scroll) > 0.01f)
             {
                 Rotate(scroll * RotationStepDegrees);
             }
 
-            if (Input.GetMouseButtonDown(0))
+            if (UnityEngine.Input.GetMouseButtonDown(0))
             {
                 pointerDownOverUi = IsPointerOverUi();
                 isDragging = true;
                 dragExceededThreshold = false;
-                mouseDownPosition = Input.mousePosition;
-                lastMousePosition = Input.mousePosition;
+                mouseDownPosition = UnityEngine.Input.mousePosition;
+                lastMousePosition = UnityEngine.Input.mousePosition;
             }
 
-            if (Input.GetMouseButtonUp(0))
+            if (UnityEngine.Input.GetMouseButtonUp(0))
             {
                 isDragging = false;
                 if (!pointerDownOverUi && !dragExceededThreshold && !IsPointerOverUi())
                 {
-                    TrySelectClickedCard(Input.mousePosition);
+                    TrySelectClickedCard(UnityEngine.Input.mousePosition);
                 }
             }
 
             if (isDragging)
             {
-                var delta = Input.mousePosition - lastMousePosition;
-                if (Vector3.Distance(Input.mousePosition, mouseDownPosition) > DragSelectThreshold)
+                var delta = UnityEngine.Input.mousePosition - lastMousePosition;
+                if (Vector3.Distance(UnityEngine.Input.mousePosition, mouseDownPosition) > DragSelectThreshold)
                 {
                     dragExceededThreshold = true;
                 }
 
                 Rotate(delta.x * DragRotationMultiplier);
-                lastMousePosition = Input.mousePosition;
+                lastMousePosition = UnityEngine.Input.mousePosition;
             }
         }
 
