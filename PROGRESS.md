@@ -1,6 +1,6 @@
 # Tarot Progress
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 ## Current Phase
 
@@ -156,3 +156,28 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Added a `CardDeckArtData` resource so card-front sprites are mapped by tarot card ID instead of hard-coded in the reading scene.
 - Updated the daily reading reveal so selected cards flip to their real front artwork.
 - Kept the generated placeholder card back until a dedicated card-back design is chosen.
+
+### 2026-06-17 - Daily Reading Visual and Text Tuning
+
+- Enlarged the daily reading card ring again and limited the visible cards to at most seven.
+- Increased card spacing by using a larger ring radius with a narrower visible arc.
+- Removed the `每日运势` title and instruction text from the reading scene to reduce visual interruption.
+- Replaced the repeated placeholder daily advice with local rule-based advice that varies by card, suit, number, and orientation.
+- Softened the card-ring scale after review and adjusted the visible arc to show at most eight cards.
+- Reduced the card-ring scale again and moved the ring downward to keep clear space from the top screen edge.
+
+### 2026-06-17 - Shared Responsive Draw Layout
+
+- Added a shared card draw layout profile for reusable deck-ring sizing, visible arc, and selected-card placement.
+- Updated the daily reading card ring to calculate its radius and selected-card anchor from camera viewport proportions so it adapts across window sizes.
+- Preserved the current card visual scale while aligning the upper deck arc and drawn-card position closer to the Unity reference photo.
+- Added a public layout setter so future reading modes can reuse or override the same draw-deck proportions.
+- Reduced the daily reading result text size so the explanation matches the reference card-to-text proportion more closely.
+- Matched the selected and flipped card scale to the ring-card scale so the card does not visually grow after being drawn.
+- Thinned the generated card-back border and center motif so the back design reads slimmer without changing the card's actual aspect ratio.
+- Increased the default starfield star size multiplier so the background stars read more clearly during card drawing.
+- Enlarged the shared draw-layout card scale while increasing the ring radius and keeping the visible arc unchanged so the same number of cards remains visible.
+- Tuned the shared draw-layout scale and visible arc back toward a 7-8 card presentation after reviewing the in-game card size.
+- Retuned the shared draw-layout proportions toward the reference photo, with slimmer card scale, a wider upper arc, and matching selected-card size.
+- Restyled the daily reading result text so the card name is single-language, lightly tracked, bolded, and positioned closer beneath the selected card.
+- Increased the result card-name and body text sizes so the name better matches the card-face title scale while preserving hierarchy.

@@ -3,24 +3,25 @@ using System.Collections;
 using System.Collections.Generic;
 using Tarot.Appearance;
 using Tarot.Cards;
+using Tarot.Localization;
+using Tarot.Readings;
 using Tarot.RuntimeDeck;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Tarot.DailyReading
 {
-    public sealed class DailyReadingController : MonoBehaviour
+    public sealed class DailyReadingController : MonoBehaviour, ICardDrawLayoutProvider
     {
         private const int FocusIndex = 39;
-        private const float RingCardScale = 1.5f;
-        private const float RingRadius = 24f;
-        private const float RingYOffset = -20.65f;
-        private const float VisibleArcDegrees = 68f;
-        private const float SelectedCardScale = 1.45f;
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
+        private const int ResultFontSize = 18;
+        private const int ResultBodyFontSize = 15;
 
         [SerializeField] private BackgroundManager backgroundManager;
+        [SerializeField] private LocaleId currentLocale = LocaleId.SimplifiedChinese;
+        [SerializeField] private CardDrawLayoutProfile drawLayout = CardDrawLayoutProfile.CreateDefault();
         [SerializeField] private Color cardBackColor = new(0.035f, 0.038f, 0.052f, 1f);
         [SerializeField] private Color cardFaceColor = new(0.86f, 0.84f, 0.78f, 1f);
         [SerializeField] private Color cardLineColor = new(0.78f, 0.68f, 0.48f, 1f);
@@ -32,8 +33,6 @@ namespace Tarot.DailyReading
         private Transform ringRoot;
         private Transform selectedAnchor;
         private Canvas canvas;
-        private Text titleText;
-        private Text instructionText;
         private Text resultText;
         private float rotationOffset;
         private bool isDragging;
@@ -45,8 +44,10 @@ namespace Tarot.DailyReading
         private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
         private Sprite fallbackCardFaceSprite;
+        private DeckLayoutMetrics layoutMetrics;
 
         public event Action BackRequested;
+        public CardDrawLayoutProfile DrawLayout => GetDrawLayout();
 
         private void Awake()
         {
@@ -70,6 +71,7 @@ namespace Tarot.DailyReading
                 return;
             }
 
+            ApplyResponsiveLayout();
             HandleRotationInput();
             UpdateCardLayout();
         }
@@ -77,6 +79,18 @@ namespace Tarot.DailyReading
         public void SetBackgroundManager(BackgroundManager manager)
         {
             backgroundManager = manager;
+        }
+
+        public void SetDrawLayout(CardDrawLayoutProfile layout)
+        {
+            drawLayout = layout ?? CardDrawLayoutProfile.CreateDefault();
+            ApplyResponsiveLayout();
+            UpdateCardLayout();
+        }
+
+        public void SetLocale(LocaleId locale)
+        {
+            currentLocale = locale;
         }
 
         private void BuildScene()
@@ -87,12 +101,13 @@ namespace Tarot.DailyReading
 
             selectedAnchor = new GameObject("Selected Card Anchor").transform;
             selectedAnchor.SetParent(transform, false);
-            selectedAnchor.localPosition = new Vector3(0f, -2.15f, 0f);
+            selectedAnchor.localPosition = Vector3.zero;
+            ApplyResponsiveLayout();
 
             canvas = CreateCanvas();
-            titleText = CreateText(canvas.transform, "每日运势", 42, new Color(0.92f, 0.9f, 0.84f, 1f), new Vector2(0f, 452f), new Vector2(520f, 70f));
-            instructionText = CreateText(canvas.transform, "滚轮或拖拽转动牌环，点击任意可见牌抽取今日指引。", 22, new Color(0.66f, 0.68f, 0.74f, 1f), new Vector2(0f, 405f), new Vector2(900f, 48f));
-            resultText = CreateText(canvas.transform, string.Empty, 24, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -365f), new Vector2(980f, 180f));
+            resultText = CreateText(canvas.transform, string.Empty, ResultFontSize, new Color(0.88f, 0.86f, 0.8f, 1f), new Vector2(0f, -305f), new Vector2(820f, 132f));
+            resultText.lineSpacing = 1.02f;
+            resultText.supportRichText = true;
 
             CreateButton(canvas.transform, "返回", new Vector2(-790f, -456f), () => BackRequested?.Invoke());
             CreateButton(canvas.transform, "再抽一次", new Vector2(790f, -456f), ResetReading);
@@ -186,11 +201,14 @@ namespace Tarot.DailyReading
 
         private void UpdateCardLayout()
         {
+            var layout = GetDrawLayout();
+            var halfVisibleArc = Mathf.Max(0.01f, layoutMetrics.VisibleArcDegrees * 0.5f);
+
             for (var index = 0; index < cardViews.Count; index++)
             {
                 var angle = (index - FocusIndex) * RotationStepDegrees + rotationOffset + 90f;
                 var normalizedAngle = Mathf.DeltaAngle(90f, angle);
-                var isVisible = Mathf.Abs(normalizedAngle) <= VisibleArcDegrees * 0.5f;
+                var isVisible = Mathf.Abs(normalizedAngle) <= halfVisibleArc;
                 var view = cardViews[index];
                 view.Transform.gameObject.SetActive(isVisible);
 
@@ -200,14 +218,17 @@ namespace Tarot.DailyReading
                 }
 
                 var radians = angle * Mathf.Deg2Rad;
-                var position = new Vector3(Mathf.Cos(radians) * RingRadius, Mathf.Sin(radians) * RingRadius + RingYOffset, 0f);
-                var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / (VisibleArcDegrees * 0.5f));
+                var position = new Vector3(
+                    Mathf.Cos(radians) * layoutMetrics.RingRadius,
+                    Mathf.Sin(radians) * layoutMetrics.RingRadius + layoutMetrics.RingYOffset,
+                    0f);
+                var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / halfVisibleArc);
                 var tint = Color.Lerp(cardDimColor, focusColor, 0.2f + centerProximity * 0.22f);
                 tint.a = Mathf.Lerp(0.72f, 0.96f, centerProximity);
 
                 view.Transform.localPosition = position;
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
-                view.Transform.localScale = new Vector3(RingCardScale, RingCardScale, 1f);
+                view.Transform.localScale = new Vector3(layout.RingCardScale, layout.RingCardScale, 1f);
                 view.Renderer.color = tint;
                 view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f);
             }
@@ -265,7 +286,8 @@ namespace Tarot.DailyReading
             var startPosition = view.Transform.localPosition;
             var startRotation = view.Transform.localRotation;
             var targetPosition = selectedAnchor.localPosition;
-            var targetScale = new Vector3(SelectedCardScale, SelectedCardScale, 1f);
+            var selectedCardScale = GetDrawLayout().SelectedCardScale;
+            var targetScale = new Vector3(selectedCardScale, selectedCardScale, 1f);
             var duration = 0.72f;
             var elapsed = 0f;
 
@@ -299,7 +321,8 @@ namespace Tarot.DailyReading
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / duration);
                 var width = Mathf.Abs(Mathf.Cos(progress * Mathf.PI));
-                view.Transform.localScale = new Vector3(SelectedCardScale * width, SelectedCardScale, 1f);
+                var selectedCardScale = GetDrawLayout().SelectedCardScale;
+                view.Transform.localScale = new Vector3(selectedCardScale * width, selectedCardScale, 1f);
 
                 if (!changedFace && progress >= 0.5f)
                 {
@@ -316,17 +339,19 @@ namespace Tarot.DailyReading
                 yield return null;
             }
 
-            view.Transform.localScale = new Vector3(SelectedCardScale, SelectedCardScale, 1f);
+            var finalSelectedCardScale = GetDrawLayout().SelectedCardScale;
+            view.Transform.localScale = new Vector3(finalSelectedCardScale, finalSelectedCardScale, 1f);
         }
 
         private void ShowResult(TarotRuntimeCard card, TarotOrientation orientation)
         {
             SetResultVisible(true);
-            var orientationText = orientation == TarotOrientation.Upright ? "正位" : "逆位";
+            var cardName = FormatResultCardName(GetLocalizedCardName(card));
+            var orientationText = GetLocalizedOrientation(orientation);
             resultText.text =
-                $"{card.ChineseName} / {card.EnglishName}  ·  {orientationText}\n" +
-                $"今日关键词：觉察、选择、节奏\n" +
-                $"今日提醒：把注意力放回你能掌控的小事，答案会慢慢变清楚。";
+                $"<b>{cardName}</b>  {orientationText}\n" +
+                $"<size={ResultBodyFontSize}>{GetLocalizedKeywordsLabel()}：{GetDailyKeywords(card, orientation)}</size>\n" +
+                $"<size={ResultBodyFontSize}>{GetLocalizedReminderLabel()}：{GetDailyReminder(card, orientation)}</size>";
         }
 
         private void ResetReading()
@@ -406,6 +431,328 @@ namespace Tarot.DailyReading
             return value * value * (3f - 2f * value);
         }
 
+        private CardDrawLayoutProfile GetDrawLayout()
+        {
+            if (drawLayout == null)
+            {
+                drawLayout = CardDrawLayoutProfile.CreateDefault();
+            }
+
+            return drawLayout;
+        }
+
+        private void ApplyResponsiveLayout()
+        {
+            var layout = GetDrawLayout();
+            var mainCamera = Camera.main;
+            if (mainCamera == null || !mainCamera.orthographic)
+            {
+                layoutMetrics = new DeckLayoutMetrics(34f, -30.8f, layout.VisibleArcDegrees);
+                return;
+            }
+
+            var halfHeight = mainCamera.orthographicSize;
+            var halfWidth = halfHeight * mainCamera.aspect;
+            var ringRadius = Mathf.Max(0.01f, halfHeight * layout.RingRadiusHalfHeightMultiplier);
+            var ringYOffset = halfHeight * layout.RingCenterYOffsetHalfHeightMultiplier;
+            var visibleArcDegrees = GetResponsiveVisibleArcDegrees(layout, halfWidth, ringRadius);
+
+            layoutMetrics = new DeckLayoutMetrics(ringRadius, ringYOffset, visibleArcDegrees);
+
+            if (selectedAnchor != null)
+            {
+                selectedAnchor.localPosition = ViewportToLocalWorldPoint(mainCamera, layout.SelectedCardViewportPosition);
+            }
+        }
+
+        private float GetResponsiveVisibleArcDegrees(CardDrawLayoutProfile layout, float halfWidth, float ringRadius)
+        {
+            var cardHalfWidth = cardBackSprite != null
+                ? cardBackSprite.bounds.extents.x * layout.RingCardScale
+                : 0.5f * layout.RingCardScale;
+            var allowedHalfWidth = halfWidth + cardHalfWidth * layout.EdgeCropAllowance;
+            var maxHalfArc = Mathf.Asin(Mathf.Clamp01(allowedHalfWidth / ringRadius)) * Mathf.Rad2Deg;
+            return Mathf.Min(layout.VisibleArcDegrees, maxHalfArc * 2f);
+        }
+
+        private Vector3 ViewportToLocalWorldPoint(Camera mainCamera, Vector2 viewportPosition)
+        {
+            var depth = Mathf.Abs(mainCamera.transform.position.z - transform.position.z);
+            var worldPosition = mainCamera.ViewportToWorldPoint(new Vector3(viewportPosition.x, viewportPosition.y, depth));
+            worldPosition.z = 0f;
+            return transform.InverseTransformPoint(worldPosition);
+        }
+
+        private string GetLocalizedCardName(TarotRuntimeCard card)
+        {
+            return currentLocale == LocaleId.English ? card.EnglishName : card.ChineseName;
+        }
+
+        private string FormatResultCardName(string cardName)
+        {
+            if (currentLocale == LocaleId.English)
+            {
+                return cardName.ToUpperInvariant();
+            }
+
+            return string.Join(" ", cardName.ToCharArray());
+        }
+
+        private string GetLocalizedOrientation(TarotOrientation orientation)
+        {
+            if (currentLocale == LocaleId.English)
+            {
+                return orientation == TarotOrientation.Upright ? "Upright" : "Reversed";
+            }
+
+            return orientation == TarotOrientation.Upright ? "正位" : "逆位";
+        }
+
+        private string GetLocalizedKeywordsLabel()
+        {
+            return currentLocale == LocaleId.English ? "Keywords" : "今日关键词";
+        }
+
+        private string GetLocalizedReminderLabel()
+        {
+            return currentLocale == LocaleId.English ? "Reminder" : "今日提醒";
+        }
+
+        private static string GetDailyKeywords(TarotRuntimeCard card, TarotOrientation orientation)
+        {
+            var baseKeywords = card.ArcanaType == ArcanaType.Major
+                ? GetMajorKeywords(card.Number)
+                : GetMinorKeywords(card.Suit, card.Number);
+
+            return orientation == TarotOrientation.Upright
+                ? baseKeywords
+                : $"{baseKeywords}、放慢";
+        }
+
+        private static string GetDailyReminder(TarotRuntimeCard card, TarotOrientation orientation)
+        {
+            return card.ArcanaType == ArcanaType.Major
+                ? GetMajorReminder(card.Number, orientation)
+                : GetMinorReminder(card.Suit, card.Number, orientation);
+        }
+
+        private static string GetMajorKeywords(int number)
+        {
+            return number switch
+            {
+                0 => "开始、直觉、轻盈",
+                1 => "行动、表达、掌控",
+                2 => "倾听、秘密、内在",
+                3 => "滋养、创造、丰盛",
+                4 => "秩序、边界、稳定",
+                5 => "学习、传统、指引",
+                6 => "关系、选择、靠近",
+                7 => "推进、意志、胜利",
+                8 => "勇气、温柔、克制",
+                9 => "独处、洞察、沉淀",
+                10 => "变化、机会、转向",
+                11 => "公平、判断、平衡",
+                12 => "等待、换位、暂停",
+                13 => "结束、更新、释然",
+                14 => "调和、修复、节奏",
+                15 => "欲望、束缚、清醒",
+                16 => "冲击、真相、重建",
+                17 => "希望、疗愈、远方",
+                18 => "梦境、迷雾、敏感",
+                19 => "明朗、生命力、坦率",
+                20 => "回应、召唤、复盘",
+                21 => "完成、整合、抵达",
+                _ => "觉察、选择、节奏"
+            };
+        }
+
+        private static string GetMajorReminder(int number, TarotOrientation orientation)
+        {
+            if (orientation == TarotOrientation.Reversed)
+            {
+                return number switch
+                {
+                    0 => "今天先别急着跳出去，确认脚下的路再开始。",
+                    1 => "你有工具，但别把所有事都揽到自己身上。",
+                    2 => "答案可能还没到公开的时候，先保护自己的感受。",
+                    3 => "照顾别人之前，也给自己留一点空间。",
+                    4 => "规则可以保护你，但别让它变成僵硬的墙。",
+                    5 => "建议值得听，但最后要回到你的真实判断。",
+                    6 => "关系里的犹豫需要被看见，不必强行给出答案。",
+                    7 => "推进前先校准方向，快不一定代表对。",
+                    8 => "温柔不是退让，今天要把力量用得更细致。",
+                    9 => "别把独处变成隔绝，必要时可以求助。",
+                    10 => "变化还在酝酿，别因为短暂卡顿就否定机会。",
+                    11 => "做决定前再核对一次事实，避免被情绪带偏。",
+                    12 => "停下来不是失败，它可能是在帮你换一个角度。",
+                    13 => "旧事未必需要立刻切断，但你可以慢慢松手。",
+                    14 => "今天别把自己拉太满，恢复节奏比硬撑更重要。",
+                    15 => "留意让你上瘾或反复消耗的东西，把选择权拿回来。",
+                    16 => "不舒服的真相出现时，先稳住，再处理。",
+                    17 => "希望不是立刻变好，而是你还愿意继续靠近光。",
+                    18 => "如果今天想太多，先把事实和想象分开放。",
+                    19 => "别为了表现积极而压住真实感受。",
+                    20 => "复盘可以，但别把自己审判得太重。",
+                    21 => "完成之前还有收尾工作，慢一点也没关系。",
+                    _ => "今天先放慢，把注意力放回你能确认的小事。"
+                };
+            }
+
+            return number switch
+            {
+                0 => "适合轻装开始，给今天留一点探索空间。",
+                1 => "把想法变成一个小动作，你会更有掌控感。",
+                2 => "多听少说，直觉会在安静里给你提示。",
+                3 => "适合照顾身体、整理环境，或创造一点美的东西。",
+                4 => "先定边界和优先级，稳定感会自然回来。",
+                5 => "向可靠的人、书或经验请教，会少走弯路。",
+                6 => "今天的重点是选择，也可能是认真面对一段关系。",
+                7 => "适合推进计划，但记得握稳方向盘。",
+                8 => "用温柔的方式坚持自己，会比硬碰硬更有效。",
+                9 => "给自己一点独处时间，答案会慢慢浮上来。",
+                10 => "留意临时变化，里面可能藏着新的入口。",
+                11 => "把事情说清楚、分清责任，今天会轻松很多。",
+                12 => "暂停一下，换个视角看问题会有新发现。",
+                13 => "适合整理、告别、更新，让空间重新流动。",
+                14 => "保持中庸和耐心，今天适合修复而不是冲刺。",
+                15 => "看见欲望背后的需求，你就不会被它牵着走。",
+                16 => "突发变化未必是坏事，它可能在拆掉不稳的结构。",
+                17 => "给未来一点信任，今天适合做疗愈和补能的事。",
+                18 => "情绪敏感时先别急着下结论，让夜色沉一沉。",
+                19 => "适合坦率表达、晒太阳、见朋友，能量会被点亮。",
+                20 => "回应心里的召唤，今天适合复盘和重新决定。",
+                21 => "某件事正在走向完整，记得承认自己的进步。",
+                _ => "把注意力放回你能掌控的小事，答案会慢慢变清楚。"
+            };
+        }
+
+        private static string GetMinorKeywords(TarotSuit suit, int number)
+        {
+            var suitKeywords = suit switch
+            {
+                TarotSuit.Wands => "行动、热情",
+                TarotSuit.Cups => "感受、关系",
+                TarotSuit.Swords => "思考、沟通",
+                TarotSuit.Pentacles => "现实、资源",
+                _ => "日常、节奏"
+            };
+
+            var numberKeyword = number switch
+            {
+                1 => "萌芽",
+                2 => "选择",
+                3 => "协作",
+                4 => "稳定",
+                5 => "摩擦",
+                6 => "流动",
+                7 => "评估",
+                8 => "推进",
+                9 => "积累",
+                10 => "完成",
+                11 => "学习",
+                12 => "出发",
+                13 => "成熟",
+                14 => "掌握",
+                _ => "调整"
+            };
+
+            return $"{suitKeywords}、{numberKeyword}";
+        }
+
+        private static string GetMinorReminder(TarotSuit suit, int number, TarotOrientation orientation)
+        {
+            var upright = suit switch
+            {
+                TarotSuit.Wands => number switch
+                {
+                    1 => "今天适合点燃一个新想法，先做最小的一步。",
+                    2 => "把选择摊开看，别让热情替你做全部决定。",
+                    3 => "你已经走出一段距离，可以开始看更远的机会。",
+                    4 => "适合庆祝小成果，也适合让自己放松一下。",
+                    5 => "有摩擦时先别急着赢，找到真正的问题更重要。",
+                    6 => "认可会带来动力，但别忘了继续往前走。",
+                    7 => "守住你的立场，今天不必讨好所有人。",
+                    8 => "消息和进展会变快，保持清醒地接住它。",
+                    9 => "你已经撑了很久，今天要保护好自己的精力。",
+                    10 => "任务过重时要拆分，不要一个人扛完整座山。",
+                    11 => "保持好奇，今天适合尝试新方法。",
+                    12 => "行动前先找准目标，冲劲会更有价值。",
+                    13 => "用稳定的热情推进事情，别被一时情绪带跑。",
+                    14 => "把能量用在真正重要的地方，你会更有影响力。",
+                    _ => "把热情落到行动里，今天会更有方向感。"
+                },
+                TarotSuit.Cups => number switch
+                {
+                    1 => "让感受自然流动，今天适合表达善意。",
+                    2 => "关系里的互相看见，会带来柔软的答案。",
+                    3 => "适合和朋友连接，轻松的交流会补充能量。",
+                    4 => "如果感到无聊，试着看见身边已经存在的礼物。",
+                    5 => "遗憾值得被承认，但别只盯着失去的部分。",
+                    6 => "旧回忆可能带来安慰，也提醒你温柔对待自己。",
+                    7 => "选择太多时，回到真正让你安心的那个。",
+                    8 => "离开消耗你的情绪场，是一种成熟的照顾。",
+                    9 => "今天适合满足一个小心愿，让自己被滋养。",
+                    10 => "珍惜稳定的情感支持，它会让一天更完整。",
+                    11 => "保持敏感和真诚，别害怕表达喜欢。",
+                    12 => "温柔靠近之前，也要确认对方是否愿意接住。",
+                    13 => "用成熟的方式照顾情绪，别急着评判自己。",
+                    14 => "情感稳定时，你会更容易给别人安全感。",
+                    _ => "把感受说清楚，关系会更轻一点。"
+                },
+                TarotSuit.Swords => number switch
+                {
+                    1 => "一个清晰判断会帮你切开混乱。",
+                    2 => "犹豫时先补足信息，别逼自己立刻决定。",
+                    3 => "刺痛感需要被照顾，今天别用理性压掉情绪。",
+                    4 => "暂停和休息会让思路重新变清楚。",
+                    5 => "争论不一定带来胜利，留一点余地更聪明。",
+                    6 => "适合离开旧问题，向更平静的方向移动。",
+                    7 => "保持机敏，但别让防备变成孤立。",
+                    8 => "困住你的可能是想法，不一定是现实。",
+                    9 => "焦虑出现时，把问题写下来会比反复想更有用。",
+                    10 => "某个想法已经走到尽头，可以停止折磨自己。",
+                    11 => "先观察再表达，今天适合收集线索。",
+                    12 => "行动要快，但话出口前仍要留一秒判断。",
+                    13 => "用清晰和诚实沟通，别绕太多弯。",
+                    14 => "今天适合做决策，但要避免太锋利。",
+                    _ => "把事实和情绪分开，你会更清醒。"
+                },
+                TarotSuit.Pentacles => number switch
+                {
+                    1 => "新的现实机会出现时，先把它稳稳接住。",
+                    2 => "今天要管理节奏，别让多个任务互相拉扯。",
+                    3 => "合作和专业会带来进展，别单打独斗。",
+                    4 => "稳定很重要，但别把安全感变成紧抓不放。",
+                    5 => "如果觉得匮乏，先寻找可以求助的资源。",
+                    6 => "给予和接受都要平衡，别让关系失衡。",
+                    7 => "耐心等待成果，今天适合评估投入是否值得。",
+                    8 => "重复练习会带来真实进步，别小看基本功。",
+                    9 => "承认自己的积累，今天适合享受一点成果。",
+                    10 => "关注长期稳定，家庭、资产或责任会成为重点。",
+                    11 => "保持学习心态，现实会奖励认真打磨的人。",
+                    12 => "稳健推进，比一时冲动更适合今天。",
+                    13 => "用可靠和耐心处理事务，会得到更稳的结果。",
+                    14 => "今天适合做资源管理和长期规划。",
+                    _ => "把注意力放在现实可执行的一步。"
+                },
+                _ => "今天适合照顾具体生活，把事情一件件放回位置。"
+            };
+
+            if (orientation == TarotOrientation.Upright)
+            {
+                return upright;
+            }
+
+            return suit switch
+            {
+                TarotSuit.Wands => "别急着用力，先确认这件事是否真的值得你的能量。",
+                TarotSuit.Cups => "情绪需要空间，今天别为了和谐而忽略自己的感受。",
+                TarotSuit.Swords => "脑中声音太多时，先停下争辩，回到事实本身。",
+                TarotSuit.Pentacles => "现实压力可以拆小处理，别让焦虑吞掉行动力。",
+                _ => "今天先放慢一点，照顾好自己的节奏。"
+            };
+        }
+
         private static Sprite CreateCardSprite(Color fill, Color line, bool drawBack)
         {
             const int width = 180;
@@ -420,16 +767,17 @@ namespace Tarot.DailyReading
             {
                 for (var x = 0; x < width; x++)
                 {
-                    var border = x < 8 || x >= width - 8 || y < 8 || y >= height - 8;
-                    var innerBorder = x < 16 || x >= width - 16 || y < 16 || y >= height - 16;
-                    var color = border || innerBorder ? line : fill;
+                    var outerBorder = x < 4 || x >= width - 4 || y < 4 || y >= height - 4;
+                    var innerVertical = (x >= 18 && x < 20 || x >= width - 20 && x < width - 18) && y >= 14 && y < height - 14;
+                    var innerHorizontal = (y >= 14 && y < 16 || y >= height - 16 && y < height - 14) && x >= 18 && x < width - 18;
+                    var color = outerBorder || innerVertical || innerHorizontal ? line : fill;
 
                     if (drawBack)
                     {
                         var dx = x - width * 0.5f;
                         var dy = y - height * 0.5f;
                         var distance = Mathf.Sqrt(dx * dx + dy * dy);
-                        if (distance > 35f && distance < 39f)
+                        if (distance > 26f && distance < 29f)
                         {
                             color = line;
                         }
@@ -460,6 +808,20 @@ namespace Tarot.DailyReading
             public Collider2D Collider { get; }
             public Sprite FrontSprite { get; }
             public bool IsSelected { get; set; }
+        }
+
+        private readonly struct DeckLayoutMetrics
+        {
+            public DeckLayoutMetrics(float ringRadius, float ringYOffset, float visibleArcDegrees)
+            {
+                RingRadius = ringRadius;
+                RingYOffset = ringYOffset;
+                VisibleArcDegrees = visibleArcDegrees;
+            }
+
+            public float RingRadius { get; }
+            public float RingYOffset { get; }
+            public float VisibleArcDegrees { get; }
         }
     }
 }

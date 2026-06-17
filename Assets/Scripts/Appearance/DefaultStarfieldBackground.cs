@@ -11,6 +11,7 @@ namespace Tarot.Appearance
         private const float MinStarDistance = 0.42f;
         private const int StarfieldSeed = 20260616;
         private const float IdleBrightnessMultiplier = 1.22f;
+        private const float StarSizeMultiplier = 1.35f;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
         [SerializeField] private Color starColor = new(0.88f, 0.92f, 1f, 1f);
@@ -182,7 +183,7 @@ namespace Tarot.Appearance
             color.a = alpha;
             star.Renderer.color = color;
 
-            var scale = star.BaseSize * (State == ReadingBackgroundState.Gathering ? 1.55f : 1f);
+            var scale = star.BaseSize * StarSizeMultiplier * (State == ReadingBackgroundState.Gathering ? 1.55f : 1f);
             star.Transform.localScale = Vector3.one * scale;
         }
 
