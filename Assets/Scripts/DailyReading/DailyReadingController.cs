@@ -15,9 +15,9 @@ namespace Tarot.DailyReading
     {
         private const int ResultFontSize = 18;
         private const int ResultBodyFontSize = 15;
-        private const int StarParticlesPerCard = 8;
-        private const float ResultCardScale = 1.68f;
-        private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.53f);
+        private const int WindParticlesPerCard = 36;
+        private const float ResultCardScale = 1.92f;
+        private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
 
         [SerializeField] private BackgroundManager backgroundManager;
         [SerializeField] private LocaleId currentLocale = LocaleId.SimplifiedChinese;
@@ -143,9 +143,8 @@ namespace Tarot.DailyReading
         {
             var targetPosition = selectedAnchor.localPosition;
             var orientation = UnityEngine.Random.value > 0.5f ? TarotOrientation.Upright : TarotOrientation.Reversed;
-            backgroundManager?.GatherTo(transform.TransformPoint(targetPosition));
 
-            yield return DissolveVisibleCardsToStars(view, targetPosition, orientation);
+            yield return RevealCardWithWindDissolve(view, targetPosition, orientation);
             ShowResult(view.Card, orientation);
             backgroundManager?.Restore();
         }
@@ -254,11 +253,16 @@ namespace Tarot.DailyReading
             return transform.InverseTransformPoint(worldPosition);
         }
 
-        private IEnumerator DissolveVisibleCardsToStars(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
+        private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float duration = 1.18f;
+            const float duration = 1.34f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
+            var startColors = new Dictionary<CardDrawCardView, Color>();
+            var startScales = new Dictionary<CardDrawCardView, Vector3>();
+            var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
+            var selectedStartScale = selected.Transform.localScale.x;
+            var selectedFrontApplied = false;
 
             foreach (var view in deckController.CardViews)
             {
@@ -269,38 +273,54 @@ namespace Tarot.DailyReading
 
                 if (view == selected)
                 {
-                    var color = view.Renderer.color;
-                    color.a = 0f;
-                    view.Renderer.color = color;
                     continue;
                 }
 
                 dissolvingCards.Add(view);
-                SpawnStarsFromCard(view, targetPosition);
+                startColors[view] = view.Renderer.color;
+                startScales[view] = view.Transform.localScale;
+                SpawnWindDustFromCard(view);
             }
 
-            PrepareSelectedResultCard(selected, targetPosition, orientation);
+            PrepareSelectedResultCard(selected, selectedStart);
 
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / duration);
-                var revealProgress = Smooth01(Mathf.InverseLerp(0.42f, 1f, progress));
+                var moveProgress = Smooth01(progress);
+                var flipProgress = Mathf.Clamp01(Mathf.InverseLerp(0.18f, 0.68f, progress));
+
+                if (!selectedFrontApplied && flipProgress >= 0.5f)
+                {
+                    selected.Renderer.sprite = selected.FrontSprite != null ? selected.FrontSprite : fallbackCardFaceSprite;
+                    selected.Renderer.color = orientation == TarotOrientation.Upright
+                        ? Color.white
+                        : new Color(0.92f, 0.9f, 0.96f, 1f);
+                    selected.Transform.localRotation = orientation == TarotOrientation.Upright
+                        ? Quaternion.identity
+                        : Quaternion.Euler(0f, 0f, 180f);
+                    selectedFrontApplied = true;
+                }
 
                 foreach (var view in dissolvingCards)
                 {
-                    var color = view.Renderer.color;
-                    color.a = Mathf.Lerp(0.82f, 0f, Smooth01(progress));
+                    var color = startColors[view];
+                    color.a = Mathf.Lerp(startColors[view].a, 0f, Smooth01(progress));
                     view.Renderer.color = color;
-                    view.Transform.localScale *= Mathf.Lerp(1f, 0.996f, progress);
+                    view.Transform.localScale = Vector3.Lerp(startScales[view], startScales[view] * 0.94f, Smooth01(progress));
                 }
 
-                selected.Transform.localScale = Vector3.one * Mathf.Lerp(ResultCardScale * 0.86f, ResultCardScale, revealProgress);
-                var selectedColor = orientation == TarotOrientation.Upright
-                    ? Color.white
-                    : new Color(0.92f, 0.9f, 0.96f, 1f);
-                selectedColor.a = revealProgress;
-                selected.Renderer.color = selectedColor;
+                var control = Vector3.Lerp(selectedStart, targetPosition, 0.52f) + Vector3.up * 0.58f;
+                var a = Vector3.Lerp(selectedStart, control, moveProgress);
+                var b = Vector3.Lerp(control, targetPosition, moveProgress);
+                selected.Transform.localPosition = Vector3.Lerp(a, b, moveProgress);
+
+                var scale = Mathf.Lerp(selectedStartScale, ResultCardScale, Smooth01(Mathf.InverseLerp(0.05f, 0.94f, progress)));
+                var flipWidth = flipProgress < 0.5f
+                    ? Mathf.Lerp(1f, 0.08f, Smooth01(flipProgress * 2f))
+                    : Mathf.Lerp(0.08f, 1f, Smooth01((flipProgress - 0.5f) * 2f));
+                selected.Transform.localScale = new Vector3(scale * flipWidth, scale, scale);
 
                 yield return null;
             }
@@ -314,102 +334,114 @@ namespace Tarot.DailyReading
                 ? Color.white
                 : new Color(0.92f, 0.9f, 0.96f, 1f);
             finalColor.a = 1f;
+            selected.Renderer.sprite = selected.FrontSprite != null ? selected.FrontSprite : fallbackCardFaceSprite;
             selected.Renderer.color = finalColor;
-            selected.Transform.localPosition = targetPosition;
-            selected.Transform.localScale = Vector3.one * ResultCardScale;
-        }
-
-        private void PrepareSelectedResultCard(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
-        {
-            selected.Transform.gameObject.SetActive(true);
             selected.Transform.localPosition = targetPosition;
             selected.Transform.localRotation = orientation == TarotOrientation.Upright
                 ? Quaternion.identity
                 : Quaternion.Euler(0f, 0f, 180f);
-            selected.Transform.localScale = Vector3.one * (ResultCardScale * 0.86f);
-            selected.Renderer.sprite = selected.FrontSprite != null ? selected.FrontSprite : fallbackCardFaceSprite;
-            selected.Renderer.sortingOrder = 2300;
-            selected.Renderer.color = new Color(1f, 1f, 1f, 0f);
+            selected.Transform.localScale = Vector3.one * ResultCardScale;
         }
 
-        private void SpawnStarsFromCard(CardDrawCardView view, Vector3 targetPosition)
+        private void PrepareSelectedResultCard(CardDrawCardView selected, Vector3 startPosition)
+        {
+            selected.Transform.gameObject.SetActive(true);
+            selected.Transform.localPosition = startPosition;
+            selected.Transform.localRotation = Quaternion.identity;
+            selected.Renderer.sprite = cardBackSprite;
+            selected.Renderer.sortingOrder = 2600;
+            selected.Renderer.color = focusColor;
+        }
+
+        private void SpawnWindDustFromCard(CardDrawCardView view)
         {
             var start = transform.InverseTransformPoint(view.Transform.position);
-            for (var index = 0; index < StarParticlesPerCard; index++)
+            var cardExtents = cardBackSprite.bounds.extents * view.Transform.localScale.x;
+            var sweepDelay = Mathf.InverseLerp(-6.5f, 6.5f, start.x) * 0.22f;
+
+            for (var index = 0; index < WindParticlesPerCard; index++)
             {
                 var offset = new Vector3(
-                    UnityEngine.Random.Range(-0.42f, 0.42f),
-                    UnityEngine.Random.Range(-0.72f, 0.72f),
-                    0f) * view.Transform.localScale.x;
-                SpawnConvergingStar(start + offset, targetPosition, UnityEngine.Random.Range(0.82f, 1.24f));
+                    UnityEngine.Random.Range(-cardExtents.x, cardExtents.x),
+                    UnityEngine.Random.Range(-cardExtents.y, cardExtents.y),
+                    0f);
+                SpawnWindDust(start + offset, sweepDelay + UnityEngine.Random.Range(0f, 0.18f), UnityEngine.Random.Range(0.82f, 1.2f));
             }
 
-            SpawnStarStream(start, targetPosition, UnityEngine.Random.Range(0.72f, 1.05f));
-            SpawnStarStream(start + Vector3.up * 0.26f, targetPosition, UnityEngine.Random.Range(0.76f, 1.12f));
+            SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.42f, sweepDelay + 0.03f, UnityEngine.Random.Range(0.82f, 1.08f));
+            SpawnWindStreak(start - Vector3.up * cardExtents.y * 0.18f, sweepDelay + 0.1f, UnityEngine.Random.Range(0.78f, 1.04f));
         }
 
-        private void SpawnConvergingStar(Vector3 localStart, Vector3 localTarget, float duration)
+        private void SpawnWindDust(Vector3 localStart, float delay, float duration)
         {
             if (effectRoot == null || starParticleSprite == null)
             {
                 return;
             }
 
-            var particle = new GameObject("Daily Converging Star");
+            var particle = new GameObject("Daily Wind Dust");
             particle.transform.SetParent(effectRoot, false);
             particle.transform.localPosition = localStart;
 
             var renderer = particle.AddComponent<SpriteRenderer>();
             renderer.sprite = starParticleSprite;
-            renderer.color = StarColor();
+            var litColor = StarColor();
+            var invisibleColor = litColor;
+            invisibleColor.a = 0f;
+            renderer.color = invisibleColor;
             renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
 
-            var startScale = UnityEngine.Random.Range(0.035f, 0.075f);
+            var startScale = UnityEngine.Random.Range(0.026f, 0.062f);
             particle.transform.localScale = Vector3.one * startScale;
-            StartCoroutine(AnimateConvergingStar(particle.transform, renderer, localTarget, duration, startScale));
+            StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }
 
-        private void SpawnStarStream(Vector3 localStart, Vector3 localTarget, float duration)
+        private void SpawnWindStreak(Vector3 localStart, float delay, float duration)
         {
             if (effectRoot == null || starStreamSprite == null)
             {
                 return;
             }
 
-            var stream = new GameObject("Daily Star Stream");
+            var stream = new GameObject("Daily Wind Stream");
             stream.transform.SetParent(effectRoot, false);
             stream.transform.localPosition = localStart;
 
             var renderer = stream.AddComponent<SpriteRenderer>();
             renderer.sprite = starStreamSprite;
-            renderer.color = new Color(0.66f, 0.82f, 1f, 0.42f);
+            renderer.color = new Color(0.66f, 0.82f, 1f, 0f);
             renderer.sortingOrder = 2350 + UnityEngine.Random.Range(0, 80);
 
-            var direction = localTarget - localStart;
-            var angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-            stream.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
-            stream.transform.localScale = new Vector3(UnityEngine.Random.Range(0.65f, 1.1f), UnityEngine.Random.Range(0.45f, 0.7f), 1f);
-            StartCoroutine(AnimateStarStream(stream.transform, renderer, localTarget, duration));
+            stream.transform.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(8f, 18f));
+            stream.transform.localScale = new Vector3(UnityEngine.Random.Range(0.42f, 0.78f), UnityEngine.Random.Range(0.32f, 0.54f), 1f);
+            StartCoroutine(AnimateWindStreak(stream.transform, renderer, delay, duration));
         }
 
-        private static IEnumerator AnimateConvergingStar(Transform particle, SpriteRenderer renderer, Vector3 target, float duration, float startScale)
+        private static IEnumerator AnimateWindDust(Transform particle, SpriteRenderer renderer, float delay, float duration, float startScale, Color litColor)
         {
             var start = particle.localPosition;
-            var curveOffset = new Vector3(UnityEngine.Random.Range(-0.55f, 0.55f), UnityEngine.Random.Range(0.36f, 1.1f), 0f);
-            var control = Vector3.Lerp(start, target, 0.5f) + curveOffset;
-            var startColor = renderer.color;
+            var wind = new Vector3(UnityEngine.Random.Range(2.2f, 4.6f), UnityEngine.Random.Range(0.34f, 1.2f), 0f);
+            var turbulence = new Vector3(UnityEngine.Random.Range(-0.18f, 0.28f), UnityEngine.Random.Range(-0.28f, 0.36f), 0f);
+            var phase = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
             var elapsed = 0f;
+
+            if (delay > 0f)
+            {
+                yield return new WaitForSeconds(delay);
+            }
 
             while (elapsed < duration && particle != null)
             {
                 elapsed += Time.deltaTime;
                 var t = Smooth01(elapsed / duration);
-                var a = Vector3.Lerp(start, control, t);
-                var b = Vector3.Lerp(control, target, t);
-                particle.localPosition = Vector3.Lerp(a, b, t);
-                particle.localScale = Vector3.one * Mathf.Lerp(startScale, startScale * 0.28f, t);
-                var color = startColor;
-                color.a = Mathf.Sin(t * Mathf.PI) * startColor.a;
+                var gust = new Vector3(
+                    Mathf.Sin(t * 10f + phase) * turbulence.x,
+                    Mathf.Cos(t * 8f + phase) * turbulence.y,
+                    0f);
+                particle.localPosition = start + wind * t + gust;
+                particle.localScale = Vector3.one * Mathf.Lerp(startScale, startScale * 0.16f, t);
+                var color = litColor;
+                color.a = Mathf.Sin(t * Mathf.PI) * litColor.a;
                 renderer.color = color;
                 yield return null;
             }
@@ -420,23 +452,27 @@ namespace Tarot.DailyReading
             }
         }
 
-        private static IEnumerator AnimateStarStream(Transform stream, SpriteRenderer renderer, Vector3 target, float duration)
+        private static IEnumerator AnimateWindStreak(Transform stream, SpriteRenderer renderer, float delay, float duration)
         {
             var start = stream.localPosition;
-            var startColor = renderer.color;
+            var startScale = stream.localScale;
             var elapsed = 0f;
+
+            if (delay > 0f)
+            {
+                yield return new WaitForSeconds(delay);
+            }
 
             while (elapsed < duration && stream != null)
             {
                 elapsed += Time.deltaTime;
                 var t = Smooth01(elapsed / duration);
-                stream.localPosition = Vector3.Lerp(start, target, t);
+                stream.localPosition = start + new Vector3(Mathf.Lerp(0f, 3.2f, t), Mathf.Lerp(0f, 0.76f, t), 0f);
                 stream.localScale = new Vector3(
-                    Mathf.Lerp(stream.localScale.x, 0.2f, t),
-                    stream.localScale.y,
+                    Mathf.Lerp(startScale.x, startScale.x * 0.18f, t),
+                    Mathf.Lerp(startScale.y, startScale.y * 0.5f, t),
                     1f);
-                var color = startColor;
-                color.a = Mathf.Sin(t * Mathf.PI) * startColor.a;
+                var color = new Color(0.66f, 0.82f, 1f, Mathf.Sin(t * Mathf.PI) * 0.38f);
                 renderer.color = color;
                 yield return null;
             }

@@ -12,9 +12,9 @@ namespace Tarot.DailyReading
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
         private const float DragRotationMultiplier = 0.075f;
-        private const float BaseVisibleArcDegrees = 38f;
-        private const float MinimumVisibleArcDegrees = 33f;
-        private const float MaximumVisibleArcDegrees = 45f;
+        private const float BaseVisibleArcDegrees = 56f;
+        private const float MinimumVisibleArcDegrees = 50f;
+        private const float MaximumVisibleArcDegrees = 64f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private Sprite cardBackSprite;
@@ -191,10 +191,10 @@ namespace Tarot.DailyReading
             var halfWidth = halfHeight * mainCamera.aspect;
             var visibleArc = GetResponsiveVisibleArcDegrees(mainCamera.aspect);
             var halfVisibleArc = visibleArc * 0.5f;
-            var horizontalSpan = halfWidth * 0.82f;
-            var centerY = halfHeight * 0.36f;
+            var horizontalSpan = halfWidth * 0.96f;
+            var centerY = halfHeight * 0.31f;
             var centerScale = GetResponsiveCenterScale(halfWidth, halfHeight);
-            var edgeScale = centerScale * 0.66f;
+            var edgeScale = centerScale * 0.82f;
 
             for (var index = 0; index < cardViews.Count; index++)
             {
@@ -213,10 +213,10 @@ namespace Tarot.DailyReading
                 var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(sideAmount));
                 var easedSide = Mathf.Sign(sideAmount) * Mathf.Pow(Mathf.Abs(sideAmount), 0.82f);
                 var scale = Mathf.Lerp(edgeScale, centerScale, Smooth01(centerProximity));
-                var y = centerY - Mathf.Abs(sideAmount) * halfHeight * 0.18f + centerProximity * halfHeight * 0.04f;
+                var y = centerY - Mathf.Abs(sideAmount) * halfHeight * 0.25f + centerProximity * halfHeight * 0.05f;
                 var x = easedSide * horizontalSpan;
                 var tint = Color.Lerp(cardDimColor, focusColor, 0.16f + centerProximity * 0.3f);
-                tint.a = Mathf.Lerp(0.5f, 0.98f, centerProximity);
+                tint.a = Mathf.Lerp(0.62f, 0.98f, centerProximity);
 
                 view.Transform.localPosition = new Vector3(x, y, 0f);
                 view.Transform.localRotation = Quaternion.identity;
@@ -280,9 +280,9 @@ namespace Tarot.DailyReading
 
         private static float GetResponsiveCenterScale(float halfWidth, float halfHeight)
         {
-            var widthBased = halfWidth * 2f / 8.9f;
-            var heightBased = halfHeight * 0.31f / 0.858f;
-            return Mathf.Clamp(Mathf.Min(widthBased, heightBased), 1.22f, 1.58f);
+            var widthBased = halfWidth * 2f / 8.4f;
+            var heightBased = halfHeight * 0.35f / 0.858f;
+            return Mathf.Clamp(Mathf.Min(widthBased, heightBased), 1.32f, 1.72f);
         }
 
         private static float Smooth01(float value)

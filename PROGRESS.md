@@ -197,3 +197,10 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Preserved mouse wheel rotation, horizontal drag rotation, and direct click-to-select behavior.
 - Added a reveal flow where visible cards dissolve into star particles and streams that gather into the selected card face.
 - Kept the default starfield background event hooks active during the reveal.
+
+### 2026-06-17 - Daily Reading P1 Wrap Branch
+
+- Created `codex/daily-p1-wrap-wind-dissolve` from `main` for visual review.
+- Tuned the daily-only immersive deck toward a wider, closer p1-style half ring.
+- Reworked the daily reveal so the selected card pulls to screen center and flips larger.
+- Changed unselected visible cards from gathered star streams to dense wind-blown star-dust dissolution.
