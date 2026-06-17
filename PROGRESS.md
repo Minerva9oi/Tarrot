@@ -213,3 +213,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Moved result text slightly higher again, restored a slightly larger bold card name without character spacing, and kept the orientation label smaller.
 - Reworked unselected-card dissolution particles to sample colors from the card-back pattern so the card back breaks apart into wind-blown dust instead of generic star colors.
 - Increased the default starfield star size and idle brightness slightly.
+- Shuffled the daily reading deck order each time the daily deck is created so card positions feel freshly randomized like a shuffled deck.

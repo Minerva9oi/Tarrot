@@ -102,11 +102,23 @@ namespace Tarot.DailyReading
             deckController = deckObject.AddComponent<DailyImmersiveDeckController>();
             deckController.CardSelected += HandleCardSelected;
             deckController.Initialize(
-                TarotRuntimeDeck.Cards,
+                CreateShuffledDailyDeck(),
                 cardBackSprite,
                 card => cardDeckArt != null ? cardDeckArt.GetFrontSprite(card.CardId) : null,
                 cardDimColor,
                 focusColor);
+        }
+
+        private static IReadOnlyList<TarotRuntimeCard> CreateShuffledDailyDeck()
+        {
+            var cards = new List<TarotRuntimeCard>(TarotRuntimeDeck.Cards);
+            for (var index = cards.Count - 1; index > 0; index--)
+            {
+                var swapIndex = UnityEngine.Random.Range(0, index + 1);
+                (cards[index], cards[swapIndex]) = (cards[swapIndex], cards[index]);
+            }
+
+            return cards;
         }
 
         private Canvas CreateCanvas()
