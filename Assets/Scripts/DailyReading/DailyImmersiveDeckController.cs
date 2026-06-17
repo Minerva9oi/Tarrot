@@ -356,26 +356,60 @@ namespace Tarot.DailyReading
         private const string SpriteShaderName = "Sprites/Default";
 
         private SpriteRenderer sourceRenderer;
+        private GameObject meshObject;
         private Mesh mesh;
         private MeshRenderer meshRenderer;
         private Material material;
+        private bool isReady;
 
         public void Initialize(SpriteRenderer source)
         {
             sourceRenderer = source;
+            if (sourceRenderer == null)
+            {
+                isReady = false;
+                return;
+            }
 
-            var meshFilter = gameObject.AddComponent<MeshFilter>();
+            meshObject = new GameObject("Daily Card Trapezoid Visual");
+            meshObject.transform.SetParent(transform, false);
+
+            var meshFilter = meshObject.AddComponent<MeshFilter>();
             mesh = new Mesh { name = "Daily Card Trapezoid Mesh" };
+            if (meshFilter == null || mesh == null)
+            {
+                isReady = false;
+                return;
+            }
+
             meshFilter.sharedMesh = mesh;
 
-            meshRenderer = gameObject.AddComponent<MeshRenderer>();
-            material = new Material(Shader.Find(SpriteShaderName));
+            meshRenderer = meshObject.AddComponent<MeshRenderer>();
+            var shader = Shader.Find(SpriteShaderName);
+            if (meshRenderer == null || shader == null)
+            {
+                isReady = false;
+                return;
+            }
+
+            material = new Material(shader);
             meshRenderer.sharedMaterial = material;
+            isReady = true;
             SetVisible(false);
         }
 
         public void SetVisible(bool isVisible)
         {
+            if (!isReady)
+            {
+                if (sourceRenderer != null)
+                {
+                    sourceRenderer.enabled = true;
+                }
+
+                return;
+            }
+
             if (sourceRenderer != null)
             {
                 sourceRenderer.enabled = !isVisible;
@@ -389,7 +423,7 @@ namespace Tarot.DailyReading
 
         public void Render(Sprite sprite, Color color, int sortingOrder, float sideSign, float amount, float widthTrim)
         {
-            if (sprite == null || sourceRenderer == null || meshRenderer == null || material == null)
+            if (!isReady || sprite == null || sourceRenderer == null || meshRenderer == null || material == null)
             {
                 SetVisible(false);
                 return;
