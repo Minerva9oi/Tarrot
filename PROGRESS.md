@@ -217,3 +217,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Added shared tarot deck shuffling and rebuilt both daily and shared draw decks on reset so `再抽一次` and future spread modes get a fresh shuffled order.
 - Widened the daily immersive deck spacing again while expanding the visible arc enough to show roughly one additional card.
 - Reduced the daily immersive deck radius slightly so the extra visible card remains while card gaps are a bit tighter.
+- Added a more colorful generated test card-back pattern so card-back dust dissolution can be visually inspected more clearly.
