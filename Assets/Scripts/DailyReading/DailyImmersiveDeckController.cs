@@ -12,9 +12,9 @@ namespace Tarot.DailyReading
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
         private const float DragRotationMultiplier = 0.075f;
-        private const float BaseVisibleArcDegrees = 23f;
-        private const float MinimumVisibleArcDegrees = 20f;
-        private const float MaximumVisibleArcDegrees = 26f;
+        private const float BaseVisibleArcDegrees = 28f;
+        private const float MinimumVisibleArcDegrees = 25f;
+        private const float MaximumVisibleArcDegrees = 31f;
         private const float EdgeTrapezoidStart = 0.68f;
         private const float MaximumTrapezoidAmount = 0.13f;
         private const float MaximumTrapezoidWidthTrim = 0.07f;
@@ -307,7 +307,7 @@ namespace Tarot.DailyReading
 
         private static float GetResponsiveRingRadius(float halfWidth)
         {
-            return halfWidth * 4.78f;
+            return halfWidth * 5.35f;
         }
 
         private static float GetResponsiveCenterScale(float halfWidth, float halfHeight)
