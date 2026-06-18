@@ -16,8 +16,8 @@ namespace Tarot.DailyReading
         private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindDustCount = 760;
-        private const int ResidualGrainCount = 1900;
+        private const int WindDustCount = 1450;
+        private const int ResidualGrainCount = 4200;
         private const float ResultCardScale = 2.16f;
         private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -258,7 +258,7 @@ namespace Tarot.DailyReading
 
         private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float dissolveDuration = 2.55f;
+            const float dissolveDuration = 3.65f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
             var startColors = new Dictionary<CardDrawCardView, Color>();
@@ -286,9 +286,6 @@ namespace Tarot.DailyReading
                 startScales[view] = view.Transform.localScale;
                 cardDissolveDelays[view] = SpawnWindDustFromCard(view);
                 SpawnCardBackResidualGrains(view, residualGrains, cardDissolveDelays[view]);
-                var hiddenColor = view.Renderer.color;
-                hiddenColor.a = 0f;
-                view.Renderer.color = hiddenColor;
             }
 
             PrepareSelectedResultCard(selected, selectedStart);
@@ -304,11 +301,11 @@ namespace Tarot.DailyReading
                 foreach (var view in dissolvingCards)
                 {
                     var cardFadeProgress = Smooth01(Mathf.InverseLerp(
-                        cardDissolveDelays[view] + 0.48f,
-                        cardDissolveDelays[view] + 1.86f,
+                        cardDissolveDelays[view] + 0.72f,
+                        cardDissolveDelays[view] + 2.95f,
                         elapsed));
                     var color = startColors[view];
-                    color.a = 0f;
+                    color.a = Mathf.Lerp(startColors[view].a, 0f, cardFadeProgress);
                     view.Renderer.color = color;
                     view.Transform.localScale = Vector3.Lerp(startScales[view], startScales[view] * 0.96f, cardFadeProgress);
                 }
@@ -437,17 +434,19 @@ namespace Tarot.DailyReading
                 var renderer = grainObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = starParticleSprite;
                 var color = SampleCardBackDustColor(unscaledOffset, cardBounds);
-                color.a *= UnityEngine.Random.Range(0.7f, 1f);
-                renderer.color = color;
+                color.a *= UnityEngine.Random.Range(0.78f, 1f);
+                var invisibleColor = color;
+                invisibleColor.a = 0f;
+                renderer.color = invisibleColor;
                 renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 190);
 
-                var grainScale = UnityEngine.Random.value < 0.72f
-                    ? UnityEngine.Random.Range(0.018f, 0.039f)
-                    : UnityEngine.Random.Range(0.04f, 0.068f);
+                var grainScale = UnityEngine.Random.value < 0.68f
+                    ? UnityEngine.Random.Range(0.026f, 0.052f)
+                    : UnityEngine.Random.Range(0.054f, 0.086f);
                 grainObject.transform.localScale = Vector3.one * grainScale;
 
                 var raggedEdge = Mathf.Sin((normalizedY * 12.6f + normalizedX * 3.1f + UnityEngine.Random.value * 2.2f) * Mathf.PI) * 0.12f;
-                var releaseDelay = baseDelay + Smooth01(normalizedX) * 1.22f + raggedEdge + UnityEngine.Random.Range(0f, 0.24f);
+                var releaseDelay = baseDelay + Smooth01(normalizedX) * 1.32f + raggedEdge + UnityEngine.Random.Range(0f, 0.28f);
                 var wind = new Vector3(
                     UnityEngine.Random.Range(0.62f, 2.35f),
                     UnityEngine.Random.Range(0.02f, 0.5f),
@@ -463,7 +462,7 @@ namespace Tarot.DailyReading
                     localPosition,
                     color,
                     Mathf.Max(0f, releaseDelay),
-                    UnityEngine.Random.Range(0.78f, 1.36f),
+                    UnityEngine.Random.Range(0.96f, 1.62f),
                     wind,
                     turbulence,
                     UnityEngine.Random.Range(0f, Mathf.PI * 2f)));
@@ -479,6 +478,7 @@ namespace Tarot.DailyReading
                     continue;
                 }
 
+                var materialize = Smooth01(Mathf.InverseLerp(grain.ReleaseDelay - 0.42f, grain.ReleaseDelay - 0.08f, elapsed));
                 var loosen = Smooth01(Mathf.InverseLerp(grain.ReleaseDelay - 0.22f, grain.ReleaseDelay, elapsed));
                 var release = Smooth01(Mathf.InverseLerp(grain.ReleaseDelay, grain.ReleaseDelay + grain.Duration, elapsed));
                 var tremble = new Vector3(
@@ -493,7 +493,7 @@ namespace Tarot.DailyReading
                 grain.Transform.localScale = grain.StartScale * Mathf.Lerp(1f, 0.08f, release);
 
                 var color = grain.BaseColor;
-                color.a = grain.BaseColor.a * (1f - Smooth01(Mathf.InverseLerp(0.18f, 1f, release)));
+                color.a = grain.BaseColor.a * materialize * (1f - Smooth01(Mathf.InverseLerp(0.2f, 1f, release)));
                 grain.Renderer.color = color;
             }
         }
@@ -675,14 +675,14 @@ namespace Tarot.DailyReading
 
             if (luminance < 0.18f)
             {
-                sampled = Color.Lerp(sampled, new Color(0.32f, 0.38f, 0.58f, 1f), 0.55f);
+                sampled = Color.Lerp(sampled, new Color(0.42f, 0.48f, 0.72f, 1f), 0.68f);
             }
             else
             {
-                sampled = Color.Lerp(sampled, Color.white, 0.08f);
+                sampled = Color.Lerp(sampled, Color.white, 0.16f);
             }
 
-            sampled.a = Mathf.Lerp(0.72f, 0.98f, Mathf.Clamp01(luminance * 1.4f));
+            sampled.a = Mathf.Lerp(0.86f, 1f, Mathf.Clamp01(luminance * 1.7f));
             return sampled;
         }
 
