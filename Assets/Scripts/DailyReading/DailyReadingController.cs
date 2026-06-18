@@ -46,6 +46,7 @@ namespace Tarot.DailyReading
         private Sprite fallbackCardFaceSprite;
         private Sprite starParticleSprite;
         private Material cardDustMeshMaterial;
+        private CardBackParticleTemplate[] cardBackParticleTemplates;
 
         public event Action BackRequested;
 
@@ -348,14 +349,14 @@ namespace Tarot.DailyReading
 
         private IEnumerator MoveSelectedCardToResult(CardDrawCardView selected, Vector3 selectedStart, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float moveDuration = 1.32f;
+            const float moveDuration = 0.92f;
             var elapsed = 0f;
 
             while (elapsed < moveDuration)
             {
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / moveDuration);
-                var moveProgress = Smooth01(progress);
+                var moveProgress = 1f - Mathf.Pow(1f - progress, 3f);
 
                 selected.Transform.localPosition = Vector3.Lerp(selectedStart, targetPosition, moveProgress);
                 selected.Transform.localRotation = Quaternion.identity;
@@ -479,6 +480,7 @@ namespace Tarot.DailyReading
             var cardBounds = cardBackSprite.bounds;
             var cardScale = view.Transform.localScale.x;
             var particleCount = MeshDustParticleCount + MeshImpactParticleCount;
+            var templates = GetCardBackParticleTemplates(cardBounds);
             var particles = new CardBackMeshParticle[particleCount];
             var vertices = new Vector3[particleCount * MeshParticleQuadVertexCount];
             var colors = new Color[vertices.Length];
@@ -487,8 +489,7 @@ namespace Tarot.DailyReading
 
             for (var index = 0; index < particleCount; index++)
             {
-                var isImpact = index >= MeshDustParticleCount;
-                particles[index] = CreateCardBackMeshParticle(start, cardBounds, cardScale, baseDelay, isImpact);
+                particles[index] = CreateCardBackMeshParticle(start, cardScale, baseDelay, templates[index]);
                 WriteParticleQuadStaticData(index, uvs, triangles);
                 WriteParticleQuad(vertices, colors, index, particles[index].StartPosition, particles[index].StartScale, Color.clear);
             }
@@ -514,16 +515,28 @@ namespace Tarot.DailyReading
             batches.Add(new CardBackParticleBatch(batchObject.transform, mesh, particles, vertices, colors));
         }
 
-        private CardBackMeshParticle CreateCardBackMeshParticle(
-            Vector3 cardStart,
-            Bounds cardBounds,
-            float cardScale,
-            float baseDelay,
-            bool isImpact)
+        private CardBackParticleTemplate[] GetCardBackParticleTemplates(Bounds cardBounds)
         {
-            var unscaledOffset = RandomCardBackOffset(cardBounds, out var normalizedX, out var normalizedY);
-            var localPosition = cardStart + new Vector3(unscaledOffset.x * cardScale, unscaledOffset.y * cardScale, 0f);
-            var color = SampleCardBackDustColor(unscaledOffset, cardBounds);
+            var particleCount = MeshDustParticleCount + MeshImpactParticleCount;
+            if (cardBackParticleTemplates != null && cardBackParticleTemplates.Length == particleCount)
+            {
+                return cardBackParticleTemplates;
+            }
+
+            cardBackParticleTemplates = new CardBackParticleTemplate[particleCount];
+            for (var index = 0; index < particleCount; index++)
+            {
+                var isImpact = index >= MeshDustParticleCount;
+                cardBackParticleTemplates[index] = CreateCardBackParticleTemplate(cardBounds, isImpact);
+            }
+
+            return cardBackParticleTemplates;
+        }
+
+        private CardBackParticleTemplate CreateCardBackParticleTemplate(Bounds cardBounds, bool isImpact)
+        {
+            var offset = RandomCardBackOffset(cardBounds, out var normalizedX, out var normalizedY);
+            var color = SampleCardBackDustColor(offset, cardBounds);
             color = Color.Lerp(color, Color.white, isImpact ? 0.42f : 0.26f);
             color.a = Mathf.Min(1f, color.a * (isImpact ? 1.48f : 1.26f));
 
@@ -531,28 +544,60 @@ namespace Tarot.DailyReading
             var raggedEdge =
                 Mathf.Sin((normalizedY * 13.8f + normalizedX * 5.7f + UnityEngine.Random.value * 2.8f) * Mathf.PI) * 0.16f +
                 Mathf.Sin((normalizedY * 36.5f + normalizedX * 9.4f) * Mathf.PI) * 0.045f;
-            var releaseDelay = baseDelay + Smooth01(peelCoordinate) * (isImpact ? 1.5f : 1.68f) + raggedEdge +
+            var releaseOffset = Smooth01(peelCoordinate) * (isImpact ? 1.42f : 1.6f) + raggedEdge +
                 UnityEngine.Random.Range(0f, isImpact ? 0.16f : 0.24f);
             var scale = isImpact
                 ? UnityEngine.Random.Range(0.2f, 0.46f)
                 : UnityEngine.Random.Range(0.095f, 0.22f);
-            var wind = isImpact
-                ? new Vector3(UnityEngine.Random.Range(2.65f, 4.65f), UnityEngine.Random.Range(-1.08f, -0.28f), 0f)
-                : new Vector3(UnityEngine.Random.Range(1.45f, 3.4f), UnityEngine.Random.Range(-0.7f, -0.06f), 0f);
-            var turbulence = isImpact
-                ? new Vector3(UnityEngine.Random.Range(-0.56f, 0.62f), UnityEngine.Random.Range(-0.42f, 0.44f), 0f)
-                : new Vector3(UnityEngine.Random.Range(-0.42f, 0.48f), UnityEngine.Random.Range(-0.34f, 0.36f), 0f);
+            var localDirection = new Vector2(offset.x, offset.y);
+            if (localDirection.sqrMagnitude < 0.0001f)
+            {
+                localDirection = UnityEngine.Random.insideUnitCircle.normalized;
+            }
 
-            return new CardBackMeshParticle(
-                localPosition,
+            localDirection.Normalize();
+            var outward = isImpact
+                ? UnityEngine.Random.Range(0.52f, 1.38f)
+                : UnityEngine.Random.Range(0.24f, 0.88f);
+            var upward = isImpact
+                ? UnityEngine.Random.Range(0.92f, 1.92f)
+                : UnityEngine.Random.Range(0.62f, 1.48f);
+            var drift = new Vector3(
+                localDirection.x * outward + UnityEngine.Random.Range(-0.18f, 0.18f),
+                localDirection.y * outward * 0.42f + upward,
+                0f);
+            var turbulence = isImpact
+                ? new Vector3(UnityEngine.Random.Range(-0.36f, 0.38f), UnityEngine.Random.Range(-0.24f, 0.3f), 0f)
+                : new Vector3(UnityEngine.Random.Range(-0.24f, 0.26f), UnityEngine.Random.Range(-0.18f, 0.24f), 0f);
+
+            return new CardBackParticleTemplate(
+                offset,
                 scale,
                 color,
-                Mathf.Max(0f, releaseDelay),
-                UnityEngine.Random.Range(isImpact ? 1.1f : 1.22f, isImpact ? 1.85f : 2.12f),
-                wind,
+                Mathf.Max(0f, releaseOffset),
+                UnityEngine.Random.Range(isImpact ? 1.62f : 1.78f, isImpact ? 2.42f : 2.68f),
+                drift,
                 turbulence,
                 UnityEngine.Random.Range(0f, Mathf.PI * 2f),
                 isImpact);
+        }
+
+        private static CardBackMeshParticle CreateCardBackMeshParticle(
+            Vector3 cardStart,
+            float cardScale,
+            float baseDelay,
+            CardBackParticleTemplate template)
+        {
+            return new CardBackMeshParticle(
+                cardStart + new Vector3(template.Offset.x * cardScale, template.Offset.y * cardScale, 0f),
+                template.StartScale,
+                template.BaseColor,
+                baseDelay + template.ReleaseOffset,
+                template.Duration,
+                template.Drift * Mathf.Lerp(0.92f, 1.12f, cardScale / ResultCardScale),
+                template.Turbulence,
+                template.Phase,
+                template.IsImpact);
         }
 
         private static void UpdateCardBackParticleBatches(List<CardBackParticleBatch> batches, float elapsed)
@@ -582,12 +627,12 @@ namespace Tarot.DailyReading
                         Mathf.Sin(releaseLinear * (particle.IsImpact ? 17f : 14f) + particle.Phase) * particle.Turbulence.x,
                         Mathf.Cos(releaseLinear * (particle.IsImpact ? 14f : 11f) + particle.Phase) * particle.Turbulence.y,
                         0f);
-                    var driftEase = Mathf.Pow(releaseLinear, particle.IsImpact ? 0.72f : 0.84f);
-                    var fall = Vector3.down * ((particle.IsImpact ? 0.38f : 0.3f) * releaseLinear * releaseLinear);
-                    var position = particle.StartPosition + tremble + (particle.Wind * driftEase) + (gust * release) + fall;
-                    var scale = particle.StartScale * Mathf.Lerp(1f, particle.IsImpact ? 0.34f : 0.24f, release);
+                    var driftEase = Smooth01(Mathf.InverseLerp(0.06f, 1f, releaseLinear));
+                    var position = particle.StartPosition + tremble + (particle.Wind * driftEase) + (gust * release * 0.58f);
+                    var expansionPulse = 1f + Mathf.Sin(Mathf.Clamp01(releaseLinear / 0.32f) * Mathf.PI) * (particle.IsImpact ? 0.22f : 0.13f);
+                    var scale = particle.StartScale * expansionPulse * Mathf.Lerp(1f, particle.IsImpact ? 0.42f : 0.3f, release);
                     var color = particle.BaseColor;
-                    var fadeOutStart = particle.IsImpact ? 0.58f : 0.62f;
+                    var fadeOutStart = particle.IsImpact ? 0.68f : 0.74f;
                     color.a = particle.BaseColor.a * materialize * (1f - Smooth01(Mathf.InverseLerp(fadeOutStart, 1f, release)));
                     WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
                 }
@@ -1461,6 +1506,41 @@ namespace Tarot.DailyReading
             public CardBackMeshParticle[] Particles { get; }
             public Vector3[] Vertices { get; }
             public Color[] Colors { get; }
+        }
+
+        private readonly struct CardBackParticleTemplate
+        {
+            public CardBackParticleTemplate(
+                Vector2 offset,
+                float startScale,
+                Color baseColor,
+                float releaseOffset,
+                float duration,
+                Vector3 drift,
+                Vector3 turbulence,
+                float phase,
+                bool isImpact)
+            {
+                Offset = offset;
+                StartScale = startScale;
+                BaseColor = baseColor;
+                ReleaseOffset = releaseOffset;
+                Duration = duration;
+                Drift = drift;
+                Turbulence = turbulence;
+                Phase = phase;
+                IsImpact = isImpact;
+            }
+
+            public Vector2 Offset { get; }
+            public float StartScale { get; }
+            public Color BaseColor { get; }
+            public float ReleaseOffset { get; }
+            public float Duration { get; }
+            public Vector3 Drift { get; }
+            public Vector3 Turbulence { get; }
+            public float Phase { get; }
+            public bool IsImpact { get; }
         }
 
         private readonly struct CardBackMeshParticle
