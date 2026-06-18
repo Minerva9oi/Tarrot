@@ -222,3 +222,5 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Temporarily changed the generated daily card back to pure white for clearer dust-effect review.
 - Strengthened the dust dissolve with denser card-back sampling, a slower ragged peel wave, longer particle linger, and a slower card fade.
 - Enlarged and softened default star sprites while increasing star brightness so the starfield reads as stars rather than tiny white specks.
+- Rejected the block and soft-strip dust prototypes because their rectangular residual shapes read too artificial.
+- Added `codex/daily-dust-grain-peel` as a new daily reveal review branch using dense rounded card-back grains instead of visible rectangular chunks.

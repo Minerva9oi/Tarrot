@@ -18,7 +18,10 @@ namespace Tarot.DailyReading
         private const int ResultOrientationFontSize = 16;
         private const int WindDustColumns = 17;
         private const int WindDustRows = 20;
+        private const int ResidualGrainColumns = 26;
+        private const int ResidualGrainRows = 38;
         private const float ResultCardScale = 2.16f;
+        private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -257,15 +260,16 @@ namespace Tarot.DailyReading
 
         private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float duration = 2.55f;
+            const float dissolveDuration = 2.55f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
             var startColors = new Dictionary<CardDrawCardView, Color>();
             var startScales = new Dictionary<CardDrawCardView, Vector3>();
             var cardDissolveDelays = new Dictionary<CardDrawCardView, float>();
+            var residualGrains = new List<CardBackResidualGrain>();
             var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
             var selectedStartScale = selected.Transform.localScale.x;
-            var selectedFrontApplied = false;
+            var selectedLiftScale = selectedStartScale * SelectedLiftScaleMultiplier;
 
             foreach (var view in deckController.CardViews)
             {
@@ -283,15 +287,60 @@ namespace Tarot.DailyReading
                 startColors[view] = view.Renderer.color;
                 startScales[view] = view.Transform.localScale;
                 cardDissolveDelays[view] = SpawnWindDustFromCard(view);
+                SpawnCardBackResidualGrains(view, residualGrains, cardDissolveDelays[view]);
+                var hiddenColor = view.Renderer.color;
+                hiddenColor.a = 0f;
+                view.Renderer.color = hiddenColor;
             }
 
             PrepareSelectedResultCard(selected, selectedStart);
 
-            while (elapsed < duration)
+            while (elapsed < dissolveDuration)
             {
                 elapsed += Time.deltaTime;
-                var moveProgress = Smooth01(Mathf.InverseLerp(0f, 1.22f, elapsed));
-                var flipProgress = Mathf.Clamp01(Mathf.InverseLerp(0.22f, 0.92f, elapsed));
+                var liftProgress = Smooth01(Mathf.InverseLerp(0f, 0.34f, elapsed));
+                selected.Transform.localPosition = selectedStart;
+                selected.Transform.localRotation = Quaternion.identity;
+                selected.Transform.localScale = Vector3.one * Mathf.Lerp(selectedStartScale, selectedLiftScale, liftProgress);
+
+                foreach (var view in dissolvingCards)
+                {
+                    var cardFadeProgress = Smooth01(Mathf.InverseLerp(
+                        cardDissolveDelays[view] + 0.48f,
+                        cardDissolveDelays[view] + 1.86f,
+                        elapsed));
+                    var color = startColors[view];
+                    color.a = 0f;
+                    view.Renderer.color = color;
+                    view.Transform.localScale = Vector3.Lerp(startScales[view], startScales[view] * 0.96f, cardFadeProgress);
+                }
+
+                UpdateCardBackResidualGrains(residualGrains, elapsed);
+
+                yield return null;
+            }
+
+            foreach (var view in dissolvingCards)
+            {
+                view.Transform.gameObject.SetActive(false);
+            }
+
+            DestroyCardBackResidualGrains(residualGrains);
+            yield return MoveSelectedCardToResult(selected, selectedStart, targetPosition, orientation, selectedLiftScale);
+        }
+
+        private IEnumerator MoveSelectedCardToResult(CardDrawCardView selected, Vector3 selectedStart, Vector3 targetPosition, TarotOrientation orientation, float startScale)
+        {
+            const float moveDuration = 1.2f;
+            var elapsed = 0f;
+            var selectedFrontApplied = false;
+
+            while (elapsed < moveDuration)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Mathf.Clamp01(elapsed / moveDuration);
+                var moveProgress = Smooth01(progress);
+                var flipProgress = Mathf.Clamp01(Mathf.InverseLerp(0.22f, 0.78f, progress));
 
                 if (!selectedFrontApplied && flipProgress >= 0.5f)
                 {
@@ -305,35 +354,18 @@ namespace Tarot.DailyReading
                     selectedFrontApplied = true;
                 }
 
-                foreach (var view in dissolvingCards)
-                {
-                    var cardFadeProgress = Smooth01(Mathf.InverseLerp(
-                        cardDissolveDelays[view] + 0.48f,
-                        cardDissolveDelays[view] + 1.86f,
-                        elapsed));
-                    var color = startColors[view];
-                    color.a = Mathf.Lerp(startColors[view].a, 0f, cardFadeProgress);
-                    view.Renderer.color = color;
-                    view.Transform.localScale = Vector3.Lerp(startScales[view], startScales[view] * 0.96f, cardFadeProgress);
-                }
-
                 var control = Vector3.Lerp(selectedStart, targetPosition, 0.52f) + Vector3.up * 0.58f;
                 var a = Vector3.Lerp(selectedStart, control, moveProgress);
                 var b = Vector3.Lerp(control, targetPosition, moveProgress);
                 selected.Transform.localPosition = Vector3.Lerp(a, b, moveProgress);
 
-                var scale = Mathf.Lerp(selectedStartScale, ResultCardScale, Smooth01(Mathf.InverseLerp(0.05f, 1.18f, elapsed)));
+                var scale = Mathf.Lerp(startScale, ResultCardScale, Smooth01(progress));
                 var flipWidth = flipProgress < 0.5f
                     ? Mathf.Lerp(1f, 0.08f, Smooth01(flipProgress * 2f))
                     : Mathf.Lerp(0.08f, 1f, Smooth01((flipProgress - 0.5f) * 2f));
                 selected.Transform.localScale = new Vector3(scale * flipWidth, scale, scale);
 
                 yield return null;
-            }
-
-            foreach (var view in dissolvingCards)
-            {
-                view.Transform.gameObject.SetActive(false);
             }
 
             var finalColor = orientation == TarotOrientation.Upright
@@ -390,6 +422,110 @@ namespace Tarot.DailyReading
             SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.42f, sweepDelay + 0.08f, UnityEngine.Random.Range(1.65f, 2.1f));
             SpawnWindStreak(start - Vector3.up * cardExtents.y * 0.18f, sweepDelay + 0.18f, UnityEngine.Random.Range(1.55f, 2f));
             return sweepDelay;
+        }
+
+        private void SpawnCardBackResidualGrains(CardDrawCardView view, List<CardBackResidualGrain> grains, float baseDelay)
+        {
+            if (effectRoot == null || starParticleSprite == null)
+            {
+                return;
+            }
+
+            var start = transform.InverseTransformPoint(view.Transform.position);
+            var cardBounds = cardBackSprite.bounds;
+            var cardScale = view.Transform.localScale.x;
+
+            for (var row = 0; row < ResidualGrainRows; row++)
+            {
+                for (var column = 0; column < ResidualGrainColumns; column++)
+                {
+                    if (UnityEngine.Random.value < 0.08f)
+                    {
+                        continue;
+                    }
+
+                    var normalizedX = (column + UnityEngine.Random.Range(0.18f, 0.82f)) / ResidualGrainColumns;
+                    var normalizedY = (row + UnityEngine.Random.Range(0.18f, 0.82f)) / ResidualGrainRows;
+                    var unscaledOffset = new Vector2(
+                        Mathf.Lerp(cardBounds.min.x, cardBounds.max.x, normalizedX),
+                        Mathf.Lerp(cardBounds.min.y, cardBounds.max.y, normalizedY));
+                    var localPosition = start + new Vector3(unscaledOffset.x * cardScale, unscaledOffset.y * cardScale, 0f);
+                    var grainObject = new GameObject("Daily Card Back Residual Grain");
+                    grainObject.transform.SetParent(effectRoot, false);
+                    grainObject.transform.localPosition = localPosition;
+
+                    var renderer = grainObject.AddComponent<SpriteRenderer>();
+                    renderer.sprite = starParticleSprite;
+                    var color = SampleCardBackDustColor(unscaledOffset, cardBounds);
+                    color.a *= UnityEngine.Random.Range(0.78f, 1f);
+                    renderer.color = color;
+                    renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 150);
+
+                    var grainScale = UnityEngine.Random.Range(0.024f, 0.052f);
+                    grainObject.transform.localScale = Vector3.one * grainScale;
+
+                    var raggedEdge = Mathf.Sin((normalizedY * 9.5f + normalizedX * 2.4f) * Mathf.PI) * 0.1f;
+                    var releaseDelay = baseDelay + Smooth01(normalizedX) * 1.18f + raggedEdge + UnityEngine.Random.Range(0f, 0.18f);
+                    var wind = new Vector3(
+                        UnityEngine.Random.Range(0.68f, 2.15f),
+                        UnityEngine.Random.Range(0.04f, 0.46f),
+                        0f);
+                    var turbulence = new Vector3(
+                        UnityEngine.Random.Range(-0.22f, 0.34f),
+                        UnityEngine.Random.Range(-0.18f, 0.3f),
+                        0f);
+
+                    grains.Add(new CardBackResidualGrain(
+                        grainObject.transform,
+                        renderer,
+                        localPosition,
+                        color,
+                        Mathf.Max(0f, releaseDelay),
+                        UnityEngine.Random.Range(0.72f, 1.26f),
+                        wind,
+                        turbulence,
+                        UnityEngine.Random.Range(0f, Mathf.PI * 2f)));
+                }
+            }
+        }
+
+        private static void UpdateCardBackResidualGrains(List<CardBackResidualGrain> grains, float elapsed)
+        {
+            foreach (var grain in grains)
+            {
+                if (grain.Transform == null || grain.Renderer == null)
+                {
+                    continue;
+                }
+
+                var loosen = Smooth01(Mathf.InverseLerp(grain.ReleaseDelay - 0.22f, grain.ReleaseDelay, elapsed));
+                var release = Smooth01(Mathf.InverseLerp(grain.ReleaseDelay, grain.ReleaseDelay + grain.Duration, elapsed));
+                var tremble = new Vector3(
+                    Mathf.Sin(elapsed * 10.5f + grain.Phase) * 0.018f,
+                    Mathf.Cos(elapsed * 8.8f + grain.Phase) * 0.014f,
+                    0f) * loosen;
+                var gust = new Vector3(
+                    Mathf.Sin(release * 11f + grain.Phase) * grain.Turbulence.x,
+                    Mathf.Cos(release * 9f + grain.Phase) * grain.Turbulence.y,
+                    0f);
+                grain.Transform.localPosition = grain.StartPosition + tremble + (grain.Wind * release) + (gust * release);
+                grain.Transform.localScale = grain.StartScale * Mathf.Lerp(1f, 0.08f, release);
+
+                var color = grain.BaseColor;
+                color.a = grain.BaseColor.a * (1f - Smooth01(Mathf.InverseLerp(0.18f, 1f, release)));
+                grain.Renderer.color = color;
+            }
+        }
+
+        private static void DestroyCardBackResidualGrains(List<CardBackResidualGrain> grains)
+        {
+            foreach (var grain in grains)
+            {
+                if (grain.Transform != null)
+                {
+                    Destroy(grain.Transform.gameObject);
+                }
+            }
         }
 
         private void SpawnWindDust(Vector3 localStart, float delay, float duration, Color litColor)
@@ -899,6 +1035,43 @@ namespace Tarot.DailyReading
 
             texture.Apply();
             return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 180f);
+        }
+
+        private readonly struct CardBackResidualGrain
+        {
+            public CardBackResidualGrain(
+                Transform transform,
+                SpriteRenderer renderer,
+                Vector3 startPosition,
+                Color baseColor,
+                float releaseDelay,
+                float duration,
+                Vector3 wind,
+                Vector3 turbulence,
+                float phase)
+            {
+                Transform = transform;
+                Renderer = renderer;
+                StartPosition = startPosition;
+                StartScale = transform.localScale;
+                BaseColor = baseColor;
+                ReleaseDelay = releaseDelay;
+                Duration = duration;
+                Wind = wind;
+                Turbulence = turbulence;
+                Phase = phase;
+            }
+
+            public Transform Transform { get; }
+            public SpriteRenderer Renderer { get; }
+            public Vector3 StartPosition { get; }
+            public Vector3 StartScale { get; }
+            public Color BaseColor { get; }
+            public float ReleaseDelay { get; }
+            public float Duration { get; }
+            public Vector3 Wind { get; }
+            public Vector3 Turbulence { get; }
+            public float Phase { get; }
         }
 
     }
