@@ -16,7 +16,7 @@ namespace Tarot.SpreadReading
 
     public sealed class SpreadSelectionController : MonoBehaviour
     {
-        private const SpreadTooltipStyle DefaultTooltipStyle = SpreadTooltipStyle.Tablecloth;
+        private const SpreadTooltipStyle DefaultTooltipStyle = SpreadTooltipStyle.Glass;
 
         [SerializeField] private BackgroundManager backgroundManager;
         [SerializeField] private SpreadTooltipStyle tooltipStyle = DefaultTooltipStyle;
