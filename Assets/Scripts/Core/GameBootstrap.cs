@@ -42,30 +42,17 @@ namespace Tarot.Core
                     backgroundManager.SetIdle();
                 };
             };
-            mainMenu.SpreadReadingRequested += () =>
+            mainMenu.ThreeCardReadingRequested += () =>
             {
                 menuObject.SetActive(false);
-                var spreadObject = new GameObject("Spread Selection");
-                var spreadSelection = spreadObject.AddComponent<SpreadSelectionController>();
-                spreadSelection.SetBackgroundManager(backgroundManager);
-                spreadSelection.BackRequested += () =>
+                var threeCardObject = new GameObject("Three Card Reading");
+                var threeCardReading = threeCardObject.AddComponent<ThreeCardReadingController>();
+                threeCardReading.SetBackgroundManager(backgroundManager);
+                threeCardReading.BackRequested += () =>
                 {
-                    Destroy(spreadObject);
+                    Destroy(threeCardObject);
                     menuObject.SetActive(true);
                     backgroundManager.SetIdle();
-                };
-                spreadSelection.ThreeCardRequested += () =>
-                {
-                    spreadObject.SetActive(false);
-                    var threeCardObject = new GameObject("Three Card Reading");
-                    var threeCardReading = threeCardObject.AddComponent<ThreeCardReadingController>();
-                    threeCardReading.SetBackgroundManager(backgroundManager);
-                    threeCardReading.BackRequested += () =>
-                    {
-                        Destroy(threeCardObject);
-                        spreadObject.SetActive(true);
-                        backgroundManager.SetIdle();
-                    };
                 };
             };
         }
