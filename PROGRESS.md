@@ -220,3 +220,5 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Added a more colorful generated test card-back pattern so card-back dust dissolution can be visually inspected more clearly.
 - Reworked the unselected-card dust effect into a left-to-right card-back peel: particles now sample a structured grid from the card-back pattern, detach in a wind-swept wave, and linger longer before fading.
 - Temporarily changed the generated daily card back to pure white for clearer dust-effect review.
+- Strengthened the dust dissolve with denser card-back sampling, a slower ragged peel wave, longer particle linger, and a slower card fade.
+- Enlarged and softened default star sprites while increasing star brightness so the starfield reads as stars rather than tiny white specks.

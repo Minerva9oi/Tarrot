@@ -10,8 +10,8 @@ namespace Tarot.Appearance
         private const int PlacementAttempts = 16;
         private const float MinStarDistance = 0.42f;
         private const int StarfieldSeed = 20260616;
-        private const float IdleBrightnessMultiplier = 1.38f;
-        private const float StarSizeMultiplier = 1.52f;
+        private const float IdleBrightnessMultiplier = 1.62f;
+        private const float StarSizeMultiplier = 1.88f;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
         [SerializeField] private Color starColor = new(0.88f, 0.92f, 1f, 1f);
@@ -222,20 +222,20 @@ namespace Tarot.Appearance
 
             if (roll > 0.94f)
             {
-                return new StarKind(0.08f, 0.13f, 0.88f, 1f, 0.18f);
+                return new StarKind(0.11f, 0.18f, 0.9f, 1f, 0.18f);
             }
 
             if (roll > 0.72f)
             {
-                return new StarKind(0.045f, 0.085f, 0.56f, 0.86f, 0.14f);
+                return new StarKind(0.064f, 0.12f, 0.62f, 0.9f, 0.14f);
             }
 
-            return new StarKind(0.022f, 0.048f, 0.3f, 0.56f, 0.1f);
+            return new StarKind(0.034f, 0.07f, 0.36f, 0.62f, 0.1f);
         }
 
         private static Sprite CreateStarSprite()
         {
-            const int size = 32;
+            const int size = 48;
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
@@ -250,9 +250,9 @@ namespace Tarot.Appearance
                 for (var x = 0; x < size; x++)
                 {
                     var distance = Vector2.Distance(new Vector2(x, y), center) / radius;
-                    var core = distance < 0.14f ? 1f : 0f;
-                    var halo = Mathf.Pow(Mathf.Clamp01(1f - distance), 4f) * 0.48f;
-                    var alpha = Mathf.Max(core, halo);
+                    var core = Mathf.Pow(Mathf.Clamp01(1f - distance * 4.2f), 1.4f);
+                    var halo = Mathf.Pow(Mathf.Clamp01(1f - distance), 2.8f) * 0.58f;
+                    var alpha = Mathf.Clamp01(core + halo);
                     texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
             }
