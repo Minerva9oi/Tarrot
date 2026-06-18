@@ -16,8 +16,8 @@ namespace Tarot.DailyReading
         private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindDustCount = 520;
-        private const int ResidualGrainCount = 3800;
+        private const int WindDustCount = 850;
+        private const int ResidualGrainCount = 6000;
         private const float ResultCardScale = 2.16f;
         private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -467,8 +467,8 @@ namespace Tarot.DailyReading
                 renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 190);
 
                 var grainScale = UnityEngine.Random.value < 0.62f
-                    ? UnityEngine.Random.Range(0.06f, 0.105f)
-                    : UnityEngine.Random.Range(0.11f, 0.17f);
+                    ? UnityEngine.Random.Range(0.12f, 0.21f)
+                    : UnityEngine.Random.Range(0.22f, 0.34f);
                 grainObject.transform.localScale = Vector3.one * grainScale;
 
                 var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
@@ -604,11 +604,11 @@ namespace Tarot.DailyReading
                     continue;
                 }
 
-                var rawProgress = Mathf.Clamp01(Mathf.InverseLerp(surface.BaseDelay + 0.08f, surface.BaseDelay + 3.55f, elapsed));
-                var progress = Mathf.Pow(rawProgress, 0.92f);
-                if (rawProgress > 0.86f)
+                var rawProgress = Mathf.Clamp01(Mathf.InverseLerp(surface.BaseDelay + 0.02f, surface.BaseDelay + 2.05f, elapsed));
+                var progress = Mathf.Pow(rawProgress, 0.95f);
+                if (rawProgress > 0.88f)
                 {
-                    progress = Mathf.Lerp(progress, 1.12f, Smooth01(Mathf.InverseLerp(0.86f, 1f, rawProgress)));
+                    progress = Mathf.Lerp(progress, 1.14f, Smooth01(Mathf.InverseLerp(0.88f, 1f, rawProgress)));
                 }
 
                 var changedPixels = false;
@@ -714,7 +714,7 @@ namespace Tarot.DailyReading
             renderer.color = invisibleColor;
             renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
 
-            var startScale = UnityEngine.Random.Range(0.09f, 0.18f);
+            var startScale = UnityEngine.Random.Range(0.16f, 0.32f);
             particle.transform.localScale = Vector3.one * startScale;
             StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }

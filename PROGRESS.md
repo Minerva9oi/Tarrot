@@ -230,3 +230,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Reworked the grain-peel transition so unselected card backs use a dynamic left-to-right peel surface: dissolved areas no longer show the intact card back, while undissolved areas preserve the card-back pattern until they break into grains.
 - Tuned grain-peel timing and direction: larger and denser grains, slower overall dissolve, diagonal upper-left to lower-right peel motion, and a faster final clear to avoid lingering right-edge fragments.
 - Changed the selected daily card reveal so the card moves to the result position before flipping, and reduced per-card dust GameObject pressure by using fewer, larger grains with more varied wind motion.
+- Realigned the grain-peel card-back surface with particle release so dissolved areas do not keep showing the back pattern, while increasing particle count and roughly doubling particle diameter for stronger impact.
