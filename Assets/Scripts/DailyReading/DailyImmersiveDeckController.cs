@@ -18,6 +18,9 @@ namespace Tarot.DailyReading
         private const float EdgeTrapezoidStart = 0.68f;
         private const float MaximumTrapezoidAmount = 0.13f;
         private const float MaximumTrapezoidWidthTrim = 0.07f;
+        private const float HoverLiftWorldUnits = 0.16f;
+        private const float HoverScaleMultiplier = 1.045f;
+        private const float HoverFocusBoost = 0.18f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly Dictionary<CardDrawCardView, DailyCardTrapezoidRenderer> trapezoidViews = new();
@@ -34,6 +37,7 @@ namespace Tarot.DailyReading
         private bool layoutFrozen;
         private Vector3 mouseDownPosition;
         private Vector3 lastMousePosition;
+        private CardDrawCardView hoveredCard;
 
         public event Action<CardDrawCardView> CardSelected;
         public IReadOnlyList<CardDrawCardView> CardViews => cardViews;
@@ -48,6 +52,10 @@ namespace Tarot.DailyReading
             if (inputEnabled)
             {
                 HandleInput();
+                if (inputEnabled)
+                {
+                    UpdateHoveredCard();
+                }
             }
 
             if (!layoutFrozen)
@@ -96,6 +104,7 @@ namespace Tarot.DailyReading
         {
             rotationOffset = 0f;
             layoutFrozen = false;
+            hoveredCard = null;
             ClearDeck();
             BuildDeck(TarotDeckShuffler.CreateShuffledCopy(sourceCards), frontSpriteProvider);
 
@@ -243,30 +252,54 @@ namespace Tarot.DailyReading
                 var y = centerY - (1f - Mathf.Cos(ringAngle)) * ringRadius * 0.08f;
                 var tint = Color.Lerp(cardDimColor, focusColor, 0.16f + centerProximity * 0.3f);
                 tint.a = Mathf.Lerp(0.72f, 0.98f, centerProximity);
+                var isHovered = view == hoveredCard;
+                if (isHovered)
+                {
+                    y += HoverLiftWorldUnits;
+                    scale *= HoverScaleMultiplier;
+                    tint = Color.Lerp(tint, focusColor, HoverFocusBoost);
+                    tint.a = Mathf.Min(1f, tint.a + 0.08f);
+                }
 
                 view.Transform.localPosition = new Vector3(x, y, 0f);
                 view.Transform.localRotation = Quaternion.identity;
                 view.Transform.localScale = Vector3.one * scale;
                 view.Renderer.color = tint;
-                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 180f);
+                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 180f + (isHovered ? 32f : 0f));
                 UpdateTrapezoid(view, sideAmount, sideProximity);
             }
         }
 
         private void TrySelectClickedCard(Vector3 screenPosition)
         {
-            var selected = GetClickedCard(screenPosition);
+            var selected = GetTopCardAtScreenPosition(screenPosition, false);
             if (selected == null)
             {
                 return;
             }
 
             selected.IsSelected = true;
+            hoveredCard = selected;
+            selected.Transform.localPosition += Vector3.up * HoverLiftWorldUnits;
+            selected.Transform.localScale *= HoverScaleMultiplier;
+            selected.Renderer.color = Color.Lerp(selected.Renderer.color, focusColor, HoverFocusBoost);
+            selected.Renderer.sortingOrder += 32;
             SetInputEnabled(false);
             CardSelected?.Invoke(selected);
         }
 
-        private CardDrawCardView GetClickedCard(Vector3 screenPosition)
+        private void UpdateHoveredCard()
+        {
+            if (layoutFrozen || isDragging || pointerDownOverUi || IsPointerOverUi())
+            {
+                hoveredCard = null;
+                return;
+            }
+
+            hoveredCard = GetTopCardAtScreenPosition(UnityEngine.Input.mousePosition, false);
+        }
+
+        private CardDrawCardView GetTopCardAtScreenPosition(Vector3 screenPosition, bool includeSelected)
         {
             var mainCamera = Camera.main;
             if (mainCamera == null)
@@ -283,7 +316,7 @@ namespace Tarot.DailyReading
             {
                 foreach (var view in cardViews)
                 {
-                    if (!view.Transform.gameObject.activeSelf || view.IsSelected || hit != view.Collider)
+                    if (!view.Transform.gameObject.activeSelf || (!includeSelected && view.IsSelected) || hit != view.Collider)
                     {
                         continue;
                     }

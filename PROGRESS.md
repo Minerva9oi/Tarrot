@@ -235,3 +235,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Enlarged the daily immersive deck cards and slightly widened the ring radius while narrowing the visible arc so the card area feels more dramatic without collapsing the gaps.
 - Retuned the enlarged daily deck to a 2.00 max scale and restored the visible arc so roughly the original number of cards remains visible with slightly tighter gaps.
 - Matched the daily deck centerline to the selected-card result line, kept the selected card at result scale after its initial pull-forward pulse, and shortened the post-dissolve wait before it moves to the result position.
+- Added a daily deck hover affordance: hovered cards lightly lift, scale up, brighten, and rise in sorting order, with the selected card preserving that emphasis as the reveal begins.
