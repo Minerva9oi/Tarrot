@@ -16,8 +16,8 @@ namespace Tarot.DailyReading
         private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindDustCount = 2100;
-        private const int ResidualGrainCount = 5600;
+        private const int WindDustCount = 3000;
+        private const int ResidualGrainCount = 7200;
         private const float ResultCardScale = 2.16f;
         private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -258,7 +258,7 @@ namespace Tarot.DailyReading
 
         private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float dissolveDuration = 3.65f;
+            const float dissolveDuration = 4.25f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
             var startColors = new Dictionary<CardDrawCardView, Color>();
@@ -409,9 +409,10 @@ namespace Tarot.DailyReading
                     unscaledOffset.y * cardScale,
                     0f);
                 var dustColor = SampleCardBackDustColor(unscaledOffset, cardBounds);
-                var raggedEdge = Mathf.Sin((normalizedY * 11.7f + normalizedX * 3.4f + UnityEngine.Random.value * 1.8f) * Mathf.PI) * 0.1f;
-                var peelDelay = Smooth01(normalizedX) * 1.08f + raggedEdge + UnityEngine.Random.Range(0f, 0.26f);
-                SpawnWindDust(start + offset, sweepDelay + Mathf.Max(0f, peelDelay), UnityEngine.Random.Range(2.05f, 3.05f), dustColor);
+                var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
+                var raggedEdge = Mathf.Sin((normalizedY * 11.7f + normalizedX * 3.4f + UnityEngine.Random.value * 1.8f) * Mathf.PI) * 0.12f;
+                var peelDelay = Smooth01(peelCoordinate) * 1.36f + raggedEdge + UnityEngine.Random.Range(0f, 0.3f);
+                SpawnWindDust(start + offset, sweepDelay + Mathf.Max(0f, peelDelay), UnityEngine.Random.Range(2.35f, 3.45f), dustColor);
             }
 
             SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.42f, sweepDelay + 0.08f, UnityEngine.Random.Range(1.65f, 2.1f));
@@ -447,16 +448,17 @@ namespace Tarot.DailyReading
                 renderer.color = invisibleColor;
                 renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 190);
 
-                var grainScale = UnityEngine.Random.value < 0.68f
-                    ? UnityEngine.Random.Range(0.026f, 0.052f)
-                    : UnityEngine.Random.Range(0.054f, 0.086f);
+                var grainScale = UnityEngine.Random.value < 0.66f
+                    ? UnityEngine.Random.Range(0.038f, 0.068f)
+                    : UnityEngine.Random.Range(0.07f, 0.112f);
                 grainObject.transform.localScale = Vector3.one * grainScale;
 
+                var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
                 var raggedEdge = Mathf.Sin((normalizedY * 12.6f + normalizedX * 3.1f + UnityEngine.Random.value * 2.2f) * Mathf.PI) * 0.12f;
-                var releaseDelay = baseDelay + Smooth01(normalizedX) * 1.32f + raggedEdge + UnityEngine.Random.Range(0f, 0.28f);
+                var releaseDelay = baseDelay + Smooth01(peelCoordinate) * 1.52f + raggedEdge + UnityEngine.Random.Range(0f, 0.34f);
                 var wind = new Vector3(
-                    UnityEngine.Random.Range(0.62f, 2.35f),
-                    UnityEngine.Random.Range(0.02f, 0.5f),
+                    UnityEngine.Random.Range(0.78f, 2.58f),
+                    UnityEngine.Random.Range(-0.28f, 0.26f),
                     0f);
                 var turbulence = new Vector3(
                     UnityEngine.Random.Range(-0.28f, 0.42f),
@@ -469,7 +471,7 @@ namespace Tarot.DailyReading
                     localPosition,
                     color,
                     Mathf.Max(0f, releaseDelay),
-                    UnityEngine.Random.Range(0.96f, 1.62f),
+                    UnityEngine.Random.Range(1.12f, 1.88f),
                     wind,
                     turbulence,
                     UnityEngine.Random.Range(0f, Mathf.PI * 2f)));
@@ -581,7 +583,13 @@ namespace Tarot.DailyReading
                     continue;
                 }
 
-                var progress = Smooth01(Mathf.InverseLerp(surface.BaseDelay + 0.08f, surface.BaseDelay + 2.92f, elapsed));
+                var rawProgress = Mathf.Clamp01(Mathf.InverseLerp(surface.BaseDelay + 0.08f, surface.BaseDelay + 3.55f, elapsed));
+                var progress = Mathf.Pow(rawProgress, 0.92f);
+                if (rawProgress > 0.86f)
+                {
+                    progress = Mathf.Lerp(progress, 1.12f, Smooth01(Mathf.InverseLerp(0.86f, 1f, rawProgress)));
+                }
+
                 var changedPixels = false;
 
                 for (var y = 0; y < surface.Height; y++)
@@ -590,17 +598,18 @@ namespace Tarot.DailyReading
                     for (var x = 0; x < surface.Width; x++)
                     {
                         var normalizedX = x / (float)(surface.Width - 1);
+                        var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
                         var raggedEdge =
-                            Mathf.Sin((normalizedY * 11.5f + progress * 2.2f) * Mathf.PI) * 0.035f +
-                            Mathf.Sin((normalizedY * 27.3f + normalizedX * 4.7f) * Mathf.PI) * 0.018f;
+                            Mathf.Sin((normalizedY * 12.5f + progress * 2.4f) * Mathf.PI) * 0.038f +
+                            Mathf.Sin((normalizedY * 29.3f + normalizedX * 5.2f) * Mathf.PI) * 0.022f;
                         var edge = progress + raggedEdge;
-                        var edgeWidth = 0.055f;
-                        var remaining = Smooth01(Mathf.InverseLerp(edge - edgeWidth, edge + edgeWidth, normalizedX));
+                        var edgeWidth = 0.07f;
+                        var remaining = Smooth01(Mathf.InverseLerp(edge - edgeWidth, edge + edgeWidth, peelCoordinate));
 
-                        if (Mathf.Abs(normalizedX - edge) < 0.14f)
+                        if (Mathf.Abs(peelCoordinate - edge) < 0.16f)
                         {
-                            var fracture = Mathf.Sin((normalizedX * 63f + normalizedY * 91f + progress * 17f) * Mathf.PI);
-                            remaining *= Mathf.Lerp(0.58f, 1f, Mathf.Clamp01(fracture * 0.5f + 0.5f));
+                            var fracture = Mathf.Sin((normalizedX * 67f + normalizedY * 97f + progress * 19f) * Mathf.PI);
+                            remaining *= Mathf.Lerp(0.48f, 1f, Mathf.Clamp01(fracture * 0.5f + 0.5f));
                         }
 
                         var index = y * surface.Width + x;
@@ -661,6 +670,11 @@ namespace Tarot.DailyReading
                 Mathf.Lerp(cardBounds.min.y, cardBounds.max.y, normalizedY));
         }
 
+        private static float GetPeelCoordinate(float normalizedX, float normalizedY)
+        {
+            return Mathf.Clamp01(normalizedX * 0.86f + (1f - normalizedY) * 0.14f);
+        }
+
         private void SpawnWindDust(Vector3 localStart, float delay, float duration, Color litColor)
         {
             if (effectRoot == null || starParticleSprite == null)
@@ -679,7 +693,7 @@ namespace Tarot.DailyReading
             renderer.color = invisibleColor;
             renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
 
-            var startScale = UnityEngine.Random.Range(0.046f, 0.104f);
+            var startScale = UnityEngine.Random.Range(0.064f, 0.132f);
             particle.transform.localScale = Vector3.one * startScale;
             StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }
@@ -700,7 +714,7 @@ namespace Tarot.DailyReading
             renderer.color = new Color(0.66f, 0.82f, 1f, 0f);
             renderer.sortingOrder = 2350 + UnityEngine.Random.Range(0, 80);
 
-            stream.transform.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(8f, 18f));
+            stream.transform.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(-10f, 6f));
             stream.transform.localScale = new Vector3(UnityEngine.Random.Range(0.42f, 0.78f), UnityEngine.Random.Range(0.32f, 0.54f), 1f);
             StartCoroutine(AnimateWindStreak(stream.transform, renderer, delay, duration));
         }
@@ -708,10 +722,10 @@ namespace Tarot.DailyReading
         private static IEnumerator AnimateWindDust(Transform particle, SpriteRenderer renderer, float delay, float duration, float startScale, Color litColor)
         {
             var start = particle.localPosition;
-            var wind = new Vector3(UnityEngine.Random.Range(0.95f, 2.75f), UnityEngine.Random.Range(0.12f, 0.68f), 0f);
-            var turbulence = new Vector3(UnityEngine.Random.Range(-0.34f, 0.5f), UnityEngine.Random.Range(-0.32f, 0.54f), 0f);
+            var wind = new Vector3(UnityEngine.Random.Range(1.05f, 2.95f), UnityEngine.Random.Range(-0.28f, 0.28f), 0f);
+            var turbulence = new Vector3(UnityEngine.Random.Range(-0.38f, 0.52f), UnityEngine.Random.Range(-0.36f, 0.48f), 0f);
             var phase = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-            var lift = UnityEngine.Random.Range(0.1f, 0.42f);
+            var lift = UnityEngine.Random.Range(-0.2f, 0.16f);
             var elapsed = 0f;
 
             if (delay > 0f)
@@ -759,7 +773,7 @@ namespace Tarot.DailyReading
             {
                 elapsed += Time.deltaTime;
                 var t = Smooth01(elapsed / duration);
-                stream.localPosition = start + new Vector3(Mathf.Lerp(0f, 3.2f, t), Mathf.Lerp(0f, 0.76f, t), 0f);
+                stream.localPosition = start + new Vector3(Mathf.Lerp(0f, 3.35f, t), Mathf.Lerp(0f, -0.42f, t), 0f);
                 stream.localScale = new Vector3(
                     Mathf.Lerp(startScale.x, startScale.x * 0.18f, t),
                     Mathf.Lerp(startScale.y, startScale.y * 0.5f, t),
