@@ -16,8 +16,8 @@ namespace Tarot.DailyReading
         private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindDustCount = 850;
-        private const int ResidualGrainCount = 6000;
+        private const int WindDustCount = 1200;
+        private const int ResidualGrainCount = 9000;
         private const float ResultCardScale = 2.16f;
         private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -466,9 +466,9 @@ namespace Tarot.DailyReading
                 renderer.color = invisibleColor;
                 renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 190);
 
-                var grainScale = UnityEngine.Random.value < 0.62f
-                    ? UnityEngine.Random.Range(0.12f, 0.21f)
-                    : UnityEngine.Random.Range(0.22f, 0.34f);
+                var grainScale = UnityEngine.Random.value < 0.72f
+                    ? UnityEngine.Random.Range(0.034f, 0.064f)
+                    : UnityEngine.Random.Range(0.066f, 0.105f);
                 grainObject.transform.localScale = Vector3.one * grainScale;
 
                 var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
@@ -714,7 +714,7 @@ namespace Tarot.DailyReading
             renderer.color = invisibleColor;
             renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
 
-            var startScale = UnityEngine.Random.Range(0.16f, 0.32f);
+            var startScale = UnityEngine.Random.Range(0.052f, 0.11f);
             particle.transform.localScale = Vector3.one * startScale;
             StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }
@@ -1125,7 +1125,7 @@ namespace Tarot.DailyReading
 
         private static Sprite CreateStarParticleSprite()
         {
-            const int size = 24;
+            const int size = 18;
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
@@ -1138,9 +1138,9 @@ namespace Tarot.DailyReading
                 for (var x = 0; x < size; x++)
                 {
                     var distance = Vector2.Distance(new Vector2(x, y), center) / (size * 0.5f);
-                    var core = Mathf.Clamp01(1f - distance * 3.6f);
-                    var halo = Mathf.Clamp01(1f - distance);
-                    var alpha = Mathf.Clamp01(core + halo * halo * 0.36f);
+                    var core = Mathf.Clamp01(1f - distance * 6.8f);
+                    var shoulder = Mathf.Clamp01(1f - distance * 3.2f);
+                    var alpha = Mathf.Clamp01(core + shoulder * shoulder * 0.42f);
                     texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
             }
