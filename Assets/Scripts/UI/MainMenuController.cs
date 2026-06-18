@@ -8,7 +8,7 @@ namespace Tarot.UI
     public sealed class MainMenuController : MonoBehaviour
     {
         private const float ColumnAnimationSpeed = 9f;
-        private const int MainMenuCount = 5;
+        private const int MainMenuCount = 6;
 
         [SerializeField] private string title = "Tarot";
         [SerializeField] private Color textColor = new(0.9f, 0.9f, 0.88f, 1f);
@@ -158,25 +158,26 @@ namespace Tarot.UI
             placeholderBody.text = index switch
             {
                 2 => "占卜日记会在这里展开历史记录、收藏与复盘。",
-                3 => "设置会在这里整理卡背、音效、背景和互动偏好。",
+                3 => "卡牌画廊会在这里管理卡牌、卡背图案和桌布外观。",
+                4 => "设置会在这里整理音效、背景和互动偏好。",
                 _ => "这个功能还没有开放。"
             };
         }
 
         private void AnimateLayout()
         {
-            var targetMainX = selectedMainIndex < 0 ? 0f : -560f;
-            var targetSpreadX = isSpreadOpen ? -320f : -128f;
-            var targetDetailX = isSpreadOpen ? 190f : 610f;
-            var targetPlaceholderX = selectedMainIndex >= 0 && !isSpreadOpen ? 60f : 360f;
+            var targetMainX = selectedMainIndex < 0 ? 0f : -590f;
+            var targetSpreadX = isSpreadOpen ? -350f : -128f;
+            var targetDetailX = isSpreadOpen ? 120f : 610f;
+            var targetPlaceholderX = selectedMainIndex >= 0 && !isSpreadOpen ? -10f : 360f;
             var t = 1f - Mathf.Exp(-ColumnAnimationSpeed * Time.unscaledDeltaTime);
 
             mainColumn.anchoredPosition = Vector2.Lerp(mainColumn.anchoredPosition, new Vector2(targetMainX, 30f), t);
             spreadColumn.anchoredPosition = Vector2.Lerp(spreadColumn.anchoredPosition, new Vector2(targetSpreadX, 24f), t);
             detailPanel.anchoredPosition = Vector2.Lerp(detailPanel.anchoredPosition, new Vector2(targetDetailX, 24f), t);
             placeholderPanel.anchoredPosition = Vector2.Lerp(placeholderPanel.anchoredPosition, new Vector2(targetPlaceholderX, 24f), t);
-            firstSeparator.anchoredPosition = Vector2.Lerp(firstSeparator.anchoredPosition, new Vector2(-535f, -65f), t);
-            secondSeparator.anchoredPosition = Vector2.Lerp(secondSeparator.anchoredPosition, new Vector2(-96f, -65f), t);
+            firstSeparator.anchoredPosition = Vector2.Lerp(firstSeparator.anchoredPosition, new Vector2(-565f, -46f), t);
+            secondSeparator.anchoredPosition = Vector2.Lerp(secondSeparator.anchoredPosition, new Vector2(-166f, -46f), t);
         }
 
         private Canvas CreateCanvas()
@@ -243,7 +244,7 @@ namespace Tarot.UI
 
         private void CreateSpreadColumn(Transform parent)
         {
-            spreadColumn = CreateColumn(parent, "Spread Navigation", new Vector2(-320f, 24f), new Vector2(430f, 330f));
+            spreadColumn = CreateColumn(parent, "Spread Navigation", new Vector2(-350f, 24f), new Vector2(430f, 330f));
             spreadGroup = spreadColumn.gameObject.AddComponent<CanvasGroup>();
 
             spreadButtons = new MenuButton[spreadItems.Length];
@@ -267,7 +268,7 @@ namespace Tarot.UI
 
         private void CreateDetailPanel(Transform parent)
         {
-            detailPanel = CreateColumn(parent, "Spread Detail Text", new Vector2(190f, 24f), new Vector2(560f, 318f));
+            detailPanel = CreateColumn(parent, "Spread Detail Text", new Vector2(120f, 24f), new Vector2(560f, 318f));
             detailGroup = detailPanel.gameObject.AddComponent<CanvasGroup>();
 
             detailTitle = CreateText("Detail Title", detailPanel, string.Empty, 34, FontStyle.Bold, new Color(0.94f, 0.94f, 0.88f, 1f), TextAnchor.UpperLeft);
@@ -294,7 +295,7 @@ namespace Tarot.UI
 
         private void CreatePlaceholderPanel(Transform parent)
         {
-            placeholderPanel = CreateColumn(parent, "Placeholder Detail Text", new Vector2(60f, 24f), new Vector2(560f, 224f));
+            placeholderPanel = CreateColumn(parent, "Placeholder Detail Text", new Vector2(-10f, 24f), new Vector2(560f, 224f));
             placeholderGroup = placeholderPanel.gameObject.AddComponent<CanvasGroup>();
 
             placeholderTitle = CreateText("Placeholder Title", placeholderPanel, string.Empty, 34, FontStyle.Bold, new Color(0.94f, 0.94f, 0.88f, 1f), TextAnchor.UpperLeft);
@@ -312,8 +313,8 @@ namespace Tarot.UI
             groupObject.transform.SetParent(parent, false);
             separatorGroup = groupObject.AddComponent<CanvasGroup>();
 
-            firstSeparator = CreateVerticalLine(groupObject.transform, "Main Separator", new Vector2(-535f, -65f), 430f);
-            secondSeparator = CreateVerticalLine(groupObject.transform, "Detail Separator", new Vector2(-96f, -65f), 430f);
+            firstSeparator = CreateVerticalLine(groupObject.transform, "Main Separator", new Vector2(-565f, -46f), 440f);
+            secondSeparator = CreateVerticalLine(groupObject.transform, "Detail Separator", new Vector2(-166f, -46f), 440f);
         }
 
         private RectTransform CreateColumn(Transform parent, string name, Vector2 position, Vector2 size)
@@ -525,8 +526,9 @@ namespace Tarot.UI
                 0 => "每日运势",
                 1 => "牌阵占卜",
                 2 => "占卜日记",
-                3 => "设置",
-                4 => "退出",
+                3 => "卡牌画廊",
+                4 => "设置",
+                5 => "退出",
                 _ => string.Empty
             };
         }
@@ -540,7 +542,7 @@ namespace Tarot.UI
                 return;
             }
 
-            if (index == 4)
+            if (index == 5)
             {
                 Application.Quit();
                 return;
