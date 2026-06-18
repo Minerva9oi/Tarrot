@@ -267,6 +267,7 @@ namespace Tarot.DailyReading
             var residualGrains = new List<CardBackResidualGrain>();
             var peelSurfaces = new List<CardBackPeelSurface>();
             var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
+            var selectedMoveStart = new Vector3(selectedStart.x, targetPosition.y, selectedStart.z);
             var selectedStartScale = selected.Transform.localScale.x;
             var selectedPullScale = ResultCardScale * SelectedPullScaleMultiplier;
 
@@ -293,7 +294,7 @@ namespace Tarot.DailyReading
                 view.Renderer.color = hiddenColor;
             }
 
-            PrepareSelectedResultCard(selected, selectedStart);
+            PrepareSelectedResultCard(selected, selectedMoveStart);
 
             while (elapsed < dissolveDuration)
             {
@@ -301,7 +302,7 @@ namespace Tarot.DailyReading
                 var settleProgress = Smooth01(Mathf.InverseLerp(0f, 0.44f, elapsed));
                 var pullProgress = Mathf.Clamp01(elapsed / 0.44f);
                 var pullPulse = Mathf.Sin(pullProgress * Mathf.PI) * (selectedPullScale - ResultCardScale);
-                selected.Transform.localPosition = selectedStart;
+                selected.Transform.localPosition = selectedMoveStart;
                 selected.Transform.localRotation = Quaternion.identity;
                 selected.Transform.localScale = Vector3.one * (Mathf.Lerp(selectedStartScale, ResultCardScale, settleProgress) + pullPulse);
 
@@ -330,7 +331,7 @@ namespace Tarot.DailyReading
 
             DestroyCardBackResidualGrains(residualGrains);
             DestroyCardBackPeelSurfaces(peelSurfaces);
-            yield return MoveSelectedCardToResult(selected, selectedStart, targetPosition, orientation);
+            yield return MoveSelectedCardToResult(selected, selectedMoveStart, targetPosition, orientation);
         }
 
         private IEnumerator MoveSelectedCardToResult(CardDrawCardView selected, Vector3 selectedStart, Vector3 targetPosition, TarotOrientation orientation)

@@ -237,3 +237,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Matched the daily deck centerline to the selected-card result line, kept the selected card at result scale after its initial pull-forward pulse, and shortened the post-dissolve wait before it moves to the result position.
 - Added a daily deck hover affordance: hovered cards lightly lift, scale up, brighten, and rise in sorting order, with the selected card preserving that emphasis as the reveal begins.
 - Strengthened the daily dust dissolve by brightening grains, adding stronger wind streaks, and reducing per-card particle objects; changed the selected card movement to a slower straight slide before flipping.
+- Locked the selected card's reveal move to the result horizontal line so it slides fully horizontally into the target position before flipping.
