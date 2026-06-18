@@ -16,8 +16,8 @@ namespace Tarot.DailyReading
         private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindDustCount = 1450;
-        private const int ResidualGrainCount = 4200;
+        private const int WindDustCount = 2100;
+        private const int ResidualGrainCount = 5600;
         private const float ResultCardScale = 2.16f;
         private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -265,6 +265,7 @@ namespace Tarot.DailyReading
             var startScales = new Dictionary<CardDrawCardView, Vector3>();
             var cardDissolveDelays = new Dictionary<CardDrawCardView, float>();
             var residualGrains = new List<CardBackResidualGrain>();
+            var peelSurfaces = new List<CardBackPeelSurface>();
             var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
             var selectedStartScale = selected.Transform.localScale.x;
             var selectedLiftScale = selectedStartScale * SelectedLiftScaleMultiplier;
@@ -286,6 +287,10 @@ namespace Tarot.DailyReading
                 startScales[view] = view.Transform.localScale;
                 cardDissolveDelays[view] = SpawnWindDustFromCard(view);
                 SpawnCardBackResidualGrains(view, residualGrains, cardDissolveDelays[view]);
+                SpawnCardBackPeelSurface(view, peelSurfaces, cardDissolveDelays[view]);
+                var hiddenColor = view.Renderer.color;
+                hiddenColor.a = 0f;
+                view.Renderer.color = hiddenColor;
             }
 
             PrepareSelectedResultCard(selected, selectedStart);
@@ -305,11 +310,12 @@ namespace Tarot.DailyReading
                         cardDissolveDelays[view] + 2.95f,
                         elapsed));
                     var color = startColors[view];
-                    color.a = Mathf.Lerp(startColors[view].a, 0f, cardFadeProgress);
+                    color.a = 0f;
                     view.Renderer.color = color;
                     view.Transform.localScale = Vector3.Lerp(startScales[view], startScales[view] * 0.96f, cardFadeProgress);
                 }
 
+                UpdateCardBackPeelSurfaces(peelSurfaces, elapsed);
                 UpdateCardBackResidualGrains(residualGrains, elapsed);
 
                 yield return null;
@@ -321,6 +327,7 @@ namespace Tarot.DailyReading
             }
 
             DestroyCardBackResidualGrains(residualGrains);
+            DestroyCardBackPeelSurfaces(peelSurfaces);
             yield return MoveSelectedCardToResult(selected, selectedStart, targetPosition, orientation, selectedLiftScale);
         }
 
@@ -509,6 +516,130 @@ namespace Tarot.DailyReading
             }
         }
 
+        private void SpawnCardBackPeelSurface(CardDrawCardView view, List<CardBackPeelSurface> surfaces, float baseDelay)
+        {
+            if (effectRoot == null || cardBackSprite == null || cardBackSprite.texture == null)
+            {
+                return;
+            }
+
+            var rect = cardBackSprite.textureRect;
+            var width = Mathf.RoundToInt(rect.width);
+            var height = Mathf.RoundToInt(rect.height);
+            var sourcePixels = new Color[width * height];
+            var workingPixels = new Color[sourcePixels.Length];
+            var sourceTexture = cardBackSprite.texture;
+
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var textureX = (rect.xMin + x + 0.5f) / sourceTexture.width;
+                    var textureY = (rect.yMin + y + 0.5f) / sourceTexture.height;
+                    var color = sourceTexture.GetPixelBilinear(textureX, textureY);
+                    sourcePixels[y * width + x] = color;
+                    workingPixels[y * width + x] = color;
+                }
+            }
+
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            texture.SetPixels(workingPixels);
+            texture.Apply(false);
+
+            var surfaceObject = new GameObject("Daily Card Back Peel Surface");
+            surfaceObject.transform.SetParent(effectRoot, false);
+            surfaceObject.transform.localPosition = transform.InverseTransformPoint(view.Transform.position);
+            surfaceObject.transform.rotation = view.Transform.rotation;
+            surfaceObject.transform.localScale = view.Transform.lossyScale;
+
+            var renderer = surfaceObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), cardBackSprite.pixelsPerUnit);
+            renderer.color = view.Renderer.color;
+            renderer.sortingOrder = 2310;
+
+            surfaces.Add(new CardBackPeelSurface(
+                surfaceObject.transform,
+                renderer,
+                texture,
+                sourcePixels,
+                workingPixels,
+                width,
+                height,
+                baseDelay));
+        }
+
+        private static void UpdateCardBackPeelSurfaces(List<CardBackPeelSurface> surfaces, float elapsed)
+        {
+            foreach (var surface in surfaces)
+            {
+                if (surface.Transform == null || surface.Texture == null)
+                {
+                    continue;
+                }
+
+                var progress = Smooth01(Mathf.InverseLerp(surface.BaseDelay + 0.08f, surface.BaseDelay + 2.92f, elapsed));
+                var changedPixels = false;
+
+                for (var y = 0; y < surface.Height; y++)
+                {
+                    var normalizedY = y / (float)(surface.Height - 1);
+                    for (var x = 0; x < surface.Width; x++)
+                    {
+                        var normalizedX = x / (float)(surface.Width - 1);
+                        var raggedEdge =
+                            Mathf.Sin((normalizedY * 11.5f + progress * 2.2f) * Mathf.PI) * 0.035f +
+                            Mathf.Sin((normalizedY * 27.3f + normalizedX * 4.7f) * Mathf.PI) * 0.018f;
+                        var edge = progress + raggedEdge;
+                        var edgeWidth = 0.055f;
+                        var remaining = Smooth01(Mathf.InverseLerp(edge - edgeWidth, edge + edgeWidth, normalizedX));
+
+                        if (Mathf.Abs(normalizedX - edge) < 0.14f)
+                        {
+                            var fracture = Mathf.Sin((normalizedX * 63f + normalizedY * 91f + progress * 17f) * Mathf.PI);
+                            remaining *= Mathf.Lerp(0.58f, 1f, Mathf.Clamp01(fracture * 0.5f + 0.5f));
+                        }
+
+                        var index = y * surface.Width + x;
+                        var color = surface.SourcePixels[index];
+                        color.a *= remaining;
+                        surface.WorkingPixels[index] = color;
+                        changedPixels = true;
+                    }
+                }
+
+                if (changedPixels)
+                {
+                    surface.Texture.SetPixels(surface.WorkingPixels);
+                    surface.Texture.Apply(false);
+                }
+            }
+        }
+
+        private static void DestroyCardBackPeelSurfaces(List<CardBackPeelSurface> surfaces)
+        {
+            foreach (var surface in surfaces)
+            {
+                if (surface.Renderer != null && surface.Renderer.sprite != null)
+                {
+                    Destroy(surface.Renderer.sprite);
+                }
+
+                if (surface.Texture != null)
+                {
+                    Destroy(surface.Texture);
+                }
+
+                if (surface.Transform != null)
+                {
+                    Destroy(surface.Transform.gameObject);
+                }
+            }
+        }
+
         private static Vector2 RandomCardBackOffset(Bounds cardBounds, out float normalizedX, out float normalizedY)
         {
             normalizedX = UnityEngine.Random.value;
@@ -548,7 +679,7 @@ namespace Tarot.DailyReading
             renderer.color = invisibleColor;
             renderer.sortingOrder = 2400 + UnityEngine.Random.Range(0, 120);
 
-            var startScale = UnityEngine.Random.Range(0.03f, 0.072f);
+            var startScale = UnityEngine.Random.Range(0.046f, 0.104f);
             particle.transform.localScale = Vector3.one * startScale;
             StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }
@@ -1072,6 +1203,38 @@ namespace Tarot.DailyReading
 
             texture.Apply();
             return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 180f);
+        }
+
+        private sealed class CardBackPeelSurface
+        {
+            public CardBackPeelSurface(
+                Transform transform,
+                SpriteRenderer renderer,
+                Texture2D texture,
+                Color[] sourcePixels,
+                Color[] workingPixels,
+                int width,
+                int height,
+                float baseDelay)
+            {
+                Transform = transform;
+                Renderer = renderer;
+                Texture = texture;
+                SourcePixels = sourcePixels;
+                WorkingPixels = workingPixels;
+                Width = width;
+                Height = height;
+                BaseDelay = baseDelay;
+            }
+
+            public Transform Transform { get; }
+            public SpriteRenderer Renderer { get; }
+            public Texture2D Texture { get; }
+            public Color[] SourcePixels { get; }
+            public Color[] WorkingPixels { get; }
+            public int Width { get; }
+            public int Height { get; }
+            public float BaseDelay { get; }
         }
 
         private readonly struct CardBackResidualGrain

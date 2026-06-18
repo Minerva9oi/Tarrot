@@ -227,3 +227,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Increased the grain-peel dust density and replaced grid-based grain placement with irregular random card-back sampling so the particle field reads less patterned.
 - Replaced the temporary white daily card back with a multi-color generated test pattern to inspect whether dust grains preserve sampled card-back colors.
 - Increased grain-peel density again, kept unselected card backs visible while they slowly fade, and made residual grains materialize along the peel front before drifting away.
+- Reworked the grain-peel transition so unselected card backs use a dynamic left-to-right peel surface: dissolved areas no longer show the intact card back, while undissolved areas preserve the card-back pattern until they break into grains.
