@@ -19,7 +19,7 @@ namespace Tarot.DailyReading
         private const int WindDustCount = 1200;
         private const int ResidualGrainCount = 9000;
         private const float ResultCardScale = 2.16f;
-        private const float SelectedLiftScaleMultiplier = 1.08f;
+        private const float SelectedPullScaleMultiplier = 1.055f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -258,7 +258,7 @@ namespace Tarot.DailyReading
 
         private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float dissolveDuration = 4.25f;
+            const float dissolveDuration = 3.58f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
             var startColors = new Dictionary<CardDrawCardView, Color>();
@@ -268,7 +268,7 @@ namespace Tarot.DailyReading
             var peelSurfaces = new List<CardBackPeelSurface>();
             var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
             var selectedStartScale = selected.Transform.localScale.x;
-            var selectedLiftScale = selectedStartScale * SelectedLiftScaleMultiplier;
+            var selectedPullScale = ResultCardScale * SelectedPullScaleMultiplier;
 
             foreach (var view in deckController.CardViews)
             {
@@ -298,10 +298,12 @@ namespace Tarot.DailyReading
             while (elapsed < dissolveDuration)
             {
                 elapsed += Time.deltaTime;
-                var liftProgress = Smooth01(Mathf.InverseLerp(0f, 0.34f, elapsed));
+                var settleProgress = Smooth01(Mathf.InverseLerp(0f, 0.44f, elapsed));
+                var pullProgress = Mathf.Clamp01(elapsed / 0.44f);
+                var pullPulse = Mathf.Sin(pullProgress * Mathf.PI) * (selectedPullScale - ResultCardScale);
                 selected.Transform.localPosition = selectedStart;
                 selected.Transform.localRotation = Quaternion.identity;
-                selected.Transform.localScale = Vector3.one * Mathf.Lerp(selectedStartScale, selectedLiftScale, liftProgress);
+                selected.Transform.localScale = Vector3.one * (Mathf.Lerp(selectedStartScale, ResultCardScale, settleProgress) + pullPulse);
 
                 foreach (var view in dissolvingCards)
                 {
@@ -328,10 +330,10 @@ namespace Tarot.DailyReading
 
             DestroyCardBackResidualGrains(residualGrains);
             DestroyCardBackPeelSurfaces(peelSurfaces);
-            yield return MoveSelectedCardToResult(selected, selectedStart, targetPosition, orientation, selectedLiftScale);
+            yield return MoveSelectedCardToResult(selected, selectedStart, targetPosition, orientation);
         }
 
-        private IEnumerator MoveSelectedCardToResult(CardDrawCardView selected, Vector3 selectedStart, Vector3 targetPosition, TarotOrientation orientation, float startScale)
+        private IEnumerator MoveSelectedCardToResult(CardDrawCardView selected, Vector3 selectedStart, Vector3 targetPosition, TarotOrientation orientation)
         {
             const float moveDuration = 1.04f;
             var elapsed = 0f;
@@ -346,9 +348,8 @@ namespace Tarot.DailyReading
                 var a = Vector3.Lerp(selectedStart, control, moveProgress);
                 var b = Vector3.Lerp(control, targetPosition, moveProgress);
                 selected.Transform.localPosition = Vector3.Lerp(a, b, moveProgress);
-                var scale = Mathf.Lerp(startScale, ResultCardScale, Smooth01(progress));
                 selected.Transform.localRotation = Quaternion.identity;
-                selected.Transform.localScale = Vector3.one * scale;
+                selected.Transform.localScale = Vector3.one * ResultCardScale;
 
                 yield return null;
             }

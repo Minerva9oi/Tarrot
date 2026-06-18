@@ -234,3 +234,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Retuned grain-peel particles toward the reference: sharper point sprites, higher per-card density, and smaller individual dots to avoid the blurred look caused by oversized soft particles.
 - Enlarged the daily immersive deck cards and slightly widened the ring radius while narrowing the visible arc so the card area feels more dramatic without collapsing the gaps.
 - Retuned the enlarged daily deck to a 2.00 max scale and restored the visible arc so roughly the original number of cards remains visible with slightly tighter gaps.
+- Matched the daily deck centerline to the selected-card result line, kept the selected card at result scale after its initial pull-forward pulse, and shortened the post-dissolve wait before it moves to the result position.

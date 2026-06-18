@@ -216,7 +216,7 @@ namespace Tarot.DailyReading
             var visibleArc = GetResponsiveVisibleArcDegrees(mainCamera.aspect);
             var halfVisibleArc = visibleArc * 0.5f;
             var ringRadius = GetResponsiveRingRadius(halfWidth);
-            var centerY = halfHeight * 0.04f;
+            var centerY = halfHeight * 0.12f;
             var centerScale = GetResponsiveCenterScale(halfWidth, halfHeight);
             var edgeScale = centerScale * 1.08f;
 
