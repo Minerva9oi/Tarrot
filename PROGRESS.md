@@ -224,3 +224,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Enlarged and softened default star sprites while increasing star brightness so the starfield reads as stars rather than tiny white specks.
 - Rejected the block and soft-strip dust prototypes because their rectangular residual shapes read too artificial.
 - Added `codex/daily-dust-grain-peel` as a new daily reveal review branch using dense rounded card-back grains instead of visible rectangular chunks.
+- Increased the grain-peel dust density and replaced grid-based grain placement with irregular random card-back sampling so the particle field reads less patterned.

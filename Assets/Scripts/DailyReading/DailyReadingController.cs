@@ -16,10 +16,8 @@ namespace Tarot.DailyReading
         private const int ResultFontSize = 24;
         private const int ResultBodyFontSize = 18;
         private const int ResultOrientationFontSize = 16;
-        private const int WindDustColumns = 17;
-        private const int WindDustRows = 20;
-        private const int ResidualGrainColumns = 26;
-        private const int ResidualGrainRows = 38;
+        private const int WindDustCount = 760;
+        private const int ResidualGrainCount = 1900;
         private const float ResultCardScale = 2.16f;
         private const float SelectedLiftScaleMultiplier = 1.08f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -399,24 +397,17 @@ namespace Tarot.DailyReading
             var cardExtents = cardBounds.extents * cardScale;
             var sweepDelay = Mathf.InverseLerp(-6.5f, 6.5f, start.x) * 0.24f;
 
-            for (var row = 0; row < WindDustRows; row++)
+            for (var index = 0; index < WindDustCount; index++)
             {
-                for (var column = 0; column < WindDustColumns; column++)
-                {
-                    var normalizedX = (column + UnityEngine.Random.Range(0.18f, 0.82f)) / WindDustColumns;
-                    var normalizedY = (row + UnityEngine.Random.Range(0.18f, 0.82f)) / WindDustRows;
-                    var unscaledOffset = new Vector2(
-                        Mathf.Lerp(cardBounds.min.x, cardBounds.max.x, normalizedX),
-                        Mathf.Lerp(cardBounds.min.y, cardBounds.max.y, normalizedY));
-                    var offset = new Vector3(
-                        unscaledOffset.x * cardScale,
-                        unscaledOffset.y * cardScale,
-                        0f);
-                    var dustColor = SampleCardBackDustColor(unscaledOffset, cardBounds);
-                    var raggedEdge = Mathf.Sin((normalizedY * 8.7f + normalizedX * 2.3f) * Mathf.PI) * 0.07f;
-                    var peelDelay = Smooth01(normalizedX) * 1.05f + raggedEdge + UnityEngine.Random.Range(0f, 0.2f);
-                    SpawnWindDust(start + offset, sweepDelay + Mathf.Max(0f, peelDelay), UnityEngine.Random.Range(1.95f, 2.8f), dustColor);
-                }
+                var unscaledOffset = RandomCardBackOffset(cardBounds, out var normalizedX, out var normalizedY);
+                var offset = new Vector3(
+                    unscaledOffset.x * cardScale,
+                    unscaledOffset.y * cardScale,
+                    0f);
+                var dustColor = SampleCardBackDustColor(unscaledOffset, cardBounds);
+                var raggedEdge = Mathf.Sin((normalizedY * 11.7f + normalizedX * 3.4f + UnityEngine.Random.value * 1.8f) * Mathf.PI) * 0.1f;
+                var peelDelay = Smooth01(normalizedX) * 1.08f + raggedEdge + UnityEngine.Random.Range(0f, 0.26f);
+                SpawnWindDust(start + offset, sweepDelay + Mathf.Max(0f, peelDelay), UnityEngine.Random.Range(2.05f, 3.05f), dustColor);
             }
 
             SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.42f, sweepDelay + 0.08f, UnityEngine.Random.Range(1.65f, 2.1f));
@@ -435,57 +426,47 @@ namespace Tarot.DailyReading
             var cardBounds = cardBackSprite.bounds;
             var cardScale = view.Transform.localScale.x;
 
-            for (var row = 0; row < ResidualGrainRows; row++)
+            for (var index = 0; index < ResidualGrainCount; index++)
             {
-                for (var column = 0; column < ResidualGrainColumns; column++)
-                {
-                    if (UnityEngine.Random.value < 0.08f)
-                    {
-                        continue;
-                    }
+                var unscaledOffset = RandomCardBackOffset(cardBounds, out var normalizedX, out var normalizedY);
+                var localPosition = start + new Vector3(unscaledOffset.x * cardScale, unscaledOffset.y * cardScale, 0f);
+                var grainObject = new GameObject("Daily Card Back Residual Grain");
+                grainObject.transform.SetParent(effectRoot, false);
+                grainObject.transform.localPosition = localPosition;
 
-                    var normalizedX = (column + UnityEngine.Random.Range(0.18f, 0.82f)) / ResidualGrainColumns;
-                    var normalizedY = (row + UnityEngine.Random.Range(0.18f, 0.82f)) / ResidualGrainRows;
-                    var unscaledOffset = new Vector2(
-                        Mathf.Lerp(cardBounds.min.x, cardBounds.max.x, normalizedX),
-                        Mathf.Lerp(cardBounds.min.y, cardBounds.max.y, normalizedY));
-                    var localPosition = start + new Vector3(unscaledOffset.x * cardScale, unscaledOffset.y * cardScale, 0f);
-                    var grainObject = new GameObject("Daily Card Back Residual Grain");
-                    grainObject.transform.SetParent(effectRoot, false);
-                    grainObject.transform.localPosition = localPosition;
+                var renderer = grainObject.AddComponent<SpriteRenderer>();
+                renderer.sprite = starParticleSprite;
+                var color = SampleCardBackDustColor(unscaledOffset, cardBounds);
+                color.a *= UnityEngine.Random.Range(0.7f, 1f);
+                renderer.color = color;
+                renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 190);
 
-                    var renderer = grainObject.AddComponent<SpriteRenderer>();
-                    renderer.sprite = starParticleSprite;
-                    var color = SampleCardBackDustColor(unscaledOffset, cardBounds);
-                    color.a *= UnityEngine.Random.Range(0.78f, 1f);
-                    renderer.color = color;
-                    renderer.sortingOrder = 2320 + UnityEngine.Random.Range(0, 150);
+                var grainScale = UnityEngine.Random.value < 0.72f
+                    ? UnityEngine.Random.Range(0.018f, 0.039f)
+                    : UnityEngine.Random.Range(0.04f, 0.068f);
+                grainObject.transform.localScale = Vector3.one * grainScale;
 
-                    var grainScale = UnityEngine.Random.Range(0.024f, 0.052f);
-                    grainObject.transform.localScale = Vector3.one * grainScale;
+                var raggedEdge = Mathf.Sin((normalizedY * 12.6f + normalizedX * 3.1f + UnityEngine.Random.value * 2.2f) * Mathf.PI) * 0.12f;
+                var releaseDelay = baseDelay + Smooth01(normalizedX) * 1.22f + raggedEdge + UnityEngine.Random.Range(0f, 0.24f);
+                var wind = new Vector3(
+                    UnityEngine.Random.Range(0.62f, 2.35f),
+                    UnityEngine.Random.Range(0.02f, 0.5f),
+                    0f);
+                var turbulence = new Vector3(
+                    UnityEngine.Random.Range(-0.28f, 0.42f),
+                    UnityEngine.Random.Range(-0.22f, 0.34f),
+                    0f);
 
-                    var raggedEdge = Mathf.Sin((normalizedY * 9.5f + normalizedX * 2.4f) * Mathf.PI) * 0.1f;
-                    var releaseDelay = baseDelay + Smooth01(normalizedX) * 1.18f + raggedEdge + UnityEngine.Random.Range(0f, 0.18f);
-                    var wind = new Vector3(
-                        UnityEngine.Random.Range(0.68f, 2.15f),
-                        UnityEngine.Random.Range(0.04f, 0.46f),
-                        0f);
-                    var turbulence = new Vector3(
-                        UnityEngine.Random.Range(-0.22f, 0.34f),
-                        UnityEngine.Random.Range(-0.18f, 0.3f),
-                        0f);
-
-                    grains.Add(new CardBackResidualGrain(
-                        grainObject.transform,
-                        renderer,
-                        localPosition,
-                        color,
-                        Mathf.Max(0f, releaseDelay),
-                        UnityEngine.Random.Range(0.72f, 1.26f),
-                        wind,
-                        turbulence,
-                        UnityEngine.Random.Range(0f, Mathf.PI * 2f)));
-                }
+                grains.Add(new CardBackResidualGrain(
+                    grainObject.transform,
+                    renderer,
+                    localPosition,
+                    color,
+                    Mathf.Max(0f, releaseDelay),
+                    UnityEngine.Random.Range(0.78f, 1.36f),
+                    wind,
+                    turbulence,
+                    UnityEngine.Random.Range(0f, Mathf.PI * 2f)));
             }
         }
 
@@ -526,6 +507,27 @@ namespace Tarot.DailyReading
                     Destroy(grain.Transform.gameObject);
                 }
             }
+        }
+
+        private static Vector2 RandomCardBackOffset(Bounds cardBounds, out float normalizedX, out float normalizedY)
+        {
+            normalizedX = UnityEngine.Random.value;
+            normalizedY = UnityEngine.Random.value;
+
+            if (UnityEngine.Random.value < 0.38f)
+            {
+                var clusterX = UnityEngine.Random.value;
+                var clusterY = UnityEngine.Random.value;
+                normalizedX = Mathf.Clamp01(clusterX + UnityEngine.Random.Range(-0.14f, 0.14f));
+                normalizedY = Mathf.Clamp01(clusterY + UnityEngine.Random.Range(-0.18f, 0.18f));
+            }
+
+            normalizedX = Mathf.Clamp01(normalizedX + Mathf.Sin((normalizedY * 7.3f + UnityEngine.Random.value * 2.4f) * Mathf.PI) * 0.018f);
+            normalizedY = Mathf.Clamp01(normalizedY + Mathf.Sin((normalizedX * 5.9f + UnityEngine.Random.value * 2.1f) * Mathf.PI) * 0.018f);
+
+            return new Vector2(
+                Mathf.Lerp(cardBounds.min.x, cardBounds.max.x, normalizedX),
+                Mathf.Lerp(cardBounds.min.y, cardBounds.max.y, normalizedY));
         }
 
         private void SpawnWindDust(Vector3 localStart, float delay, float duration, Color litColor)
