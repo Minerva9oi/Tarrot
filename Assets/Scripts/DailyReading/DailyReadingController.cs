@@ -1028,7 +1028,42 @@ namespace Tarot.DailyReading
 
                     if (drawBack)
                     {
-                        color = Color.white;
+                        var dx = x - width * 0.5f;
+                        var dy = y - height * 0.5f;
+                        var distance = Mathf.Sqrt(dx * dx + dy * dy);
+                        var u = x / (float)(width - 1);
+                        var v = y / (float)(height - 1);
+                        var radial = Mathf.Clamp01(distance / 116f);
+                        var blue = new Color(0.045f, 0.1f, 0.22f, 1f);
+                        var violet = new Color(0.17f, 0.08f, 0.26f, 1f);
+                        var teal = new Color(0.09f, 0.34f, 0.42f, 1f);
+                        var gold = new Color(0.92f, 0.72f, 0.32f, 1f);
+                        var softGold = new Color(0.72f, 0.52f, 0.24f, 1f);
+                        var baseColor = Color.Lerp(blue, violet, Mathf.Clamp01(v * 0.78f + radial * 0.22f));
+                        var aura = Mathf.Sin((u + v) * Mathf.PI * 3.2f) * 0.5f + 0.5f;
+                        color = Color.Lerp(baseColor, teal, aura * 0.24f);
+
+                        var outerDiamond = Mathf.Abs(Mathf.Abs(dx) / 62f + Mathf.Abs(dy) / 104f - 1f) < 0.026f;
+                        var innerDiamond = Mathf.Abs(Mathf.Abs(dx) / 34f + Mathf.Abs(dy) / 58f - 1f) < 0.03f;
+                        var centerRing = distance > 25f && distance < 30f;
+                        var outerRing = distance > 53f && distance < 56f;
+                        var verticalRay = Mathf.Abs(dx) < 1.8f && Mathf.Abs(dy) < 92f;
+                        var horizontalRay = Mathf.Abs(dy) < 1.8f && Mathf.Abs(dx) < 54f;
+                        var diagonalRay = Mathf.Abs(Mathf.Abs(dy) - Mathf.Abs(dx) * 1.45f) < 1.8f && distance < 72f;
+                        var cornerSpark = Mathf.Sin((x * 0.23f + y * 0.17f) * Mathf.PI) > 0.96f && radial > 0.52f;
+
+                        if (outerBorder || innerVertical || innerHorizontal || outerDiamond || centerRing)
+                        {
+                            color = gold;
+                        }
+                        else if (innerDiamond || outerRing || verticalRay || horizontalRay || diagonalRay)
+                        {
+                            color = Color.Lerp(softGold, gold, 0.45f);
+                        }
+                        else if (cornerSpark)
+                        {
+                            color = Color.Lerp(teal, gold, 0.28f);
+                        }
                     }
 
                     texture.SetPixel(x, y, color);
