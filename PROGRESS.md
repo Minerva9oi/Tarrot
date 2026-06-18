@@ -1,10 +1,10 @@
 # Tarot Progress
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Current Phase
 
-Main menu and default starfield background prototype completed. Next phase is visual review and refinement, then reading-mode selection flow.
+Daily reading immersive draw and reveal experience is now feature-complete for this review pass. Next phase is choosing the final merge target and moving on to the broader reading-mode flow.
 
 ## Completed
 
@@ -28,6 +28,7 @@ Main menu and default starfield background prototype completed. Next phase is vi
 - Added the first system skeletons and boot scene.
 - Added the first main menu prototype.
 - Added the default starfield background prototype.
+- Completed the daily reading immersive card-circle draw, selected-card reveal, card-back dust dissolution, shuffled deck order, and linked starfield motion effects for the current review pass.
 
 ## Next Tasks
 
@@ -218,6 +219,16 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Widened the daily immersive deck spacing again while expanding the visible arc enough to show roughly one additional card.
 - Reduced the daily immersive deck radius slightly so the extra visible card remains while card gaps are a bit tighter.
 - Added a more colorful generated test card-back pattern so card-back dust dissolution can be visually inspected more clearly.
+
+### 2026-06-18 - Daily Reading Visual Completion Pass
+
+- Settled the daily immersive deck on a centered inside-the-card-circle presentation with larger cards, preserved spacing, hover lift, shuffled order, and horizontal selected-card movement.
+- Removed wind-line trails from the card dissolution while keeping dense card-back-colored dust particles and residual peel timing.
+- Linked daily deck rotation to the starfield so the sky rotates in the same direction and completes one turn when the deck completes one turn.
+- Added lower-frequency meteors with a dominant upper-right to lower-left direction, plus rotation-triggered meteor trails.
+- Expanded the starfield generation area and density so rotating the sky does not expose empty black corners.
+- Added drag-intensity star trails that trigger on fast or sustained deck rotation.
+- Reworked star trails from straight stretched sprites into curved arc trails around the screen center so they read more like real long-exposure star photography.
 - Reworked the unselected-card dust effect into a left-to-right card-back peel: particles now sample a structured grid from the card-back pattern, detach in a wind-swept wave, and linger longer before fading.
 - Temporarily changed the generated daily card back to pure white for clearer dust-effect review.
 - Strengthened the dust dissolve with denser card-back sampling, a slower ragged peel wave, longer particle linger, and a slower card fade.

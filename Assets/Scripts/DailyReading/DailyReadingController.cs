@@ -41,7 +41,6 @@ namespace Tarot.DailyReading
         private Sprite cardBackSprite;
         private Sprite fallbackCardFaceSprite;
         private Sprite starParticleSprite;
-        private Sprite starStreamSprite;
 
         public event Action BackRequested;
 
@@ -55,7 +54,6 @@ namespace Tarot.DailyReading
             cardBackSprite = CreateCardSprite(cardBackColor, cardLineColor, true);
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
             starParticleSprite = CreateStarParticleSprite();
-            starStreamSprite = CreateStarStreamSprite();
 
             BuildScene();
             SetResultVisible(false);
@@ -103,12 +101,19 @@ namespace Tarot.DailyReading
             deckObject.transform.SetParent(transform, false);
             deckController = deckObject.AddComponent<DailyImmersiveDeckController>();
             deckController.CardSelected += HandleCardSelected;
+            deckController.DeckRotated += HandleDeckRotated;
             deckController.Initialize(
                 TarotRuntimeDeck.Cards,
                 cardBackSprite,
                 card => cardDeckArt != null ? cardDeckArt.GetFrontSprite(card.CardId) : null,
                 cardDimColor,
                 focusColor);
+        }
+
+        private void HandleDeckRotated(float degrees)
+        {
+            backgroundManager?.RotateStarfield(degrees);
+            backgroundManager?.TriggerRotationMeteorTrail(degrees);
         }
 
         private Canvas CreateCanvas()
@@ -336,7 +341,7 @@ namespace Tarot.DailyReading
 
         private IEnumerator MoveSelectedCardToResult(CardDrawCardView selected, Vector3 selectedStart, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float moveDuration = 1.55f;
+            const float moveDuration = 1.32f;
             var elapsed = 0f;
 
             while (elapsed < moveDuration)
@@ -415,7 +420,6 @@ namespace Tarot.DailyReading
             var start = transform.InverseTransformPoint(view.Transform.position);
             var cardBounds = cardBackSprite.bounds;
             var cardScale = view.Transform.localScale.x;
-            var cardExtents = cardBounds.extents * cardScale;
             var sweepDelay = Mathf.InverseLerp(-6.5f, 6.5f, start.x) * 0.24f;
 
             for (var index = 0; index < WindDustCount; index++)
@@ -432,10 +436,6 @@ namespace Tarot.DailyReading
                 SpawnWindDust(start + offset, sweepDelay + Mathf.Max(0f, peelDelay), UnityEngine.Random.Range(2.45f, 3.65f), dustColor);
             }
 
-            SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.5f, sweepDelay + 0.04f, UnityEngine.Random.Range(1.75f, 2.3f));
-            SpawnWindStreak(start + Vector3.up * cardExtents.y * 0.18f, sweepDelay + 0.12f, UnityEngine.Random.Range(1.7f, 2.25f));
-            SpawnWindStreak(start - Vector3.up * cardExtents.y * 0.18f, sweepDelay + 0.2f, UnityEngine.Random.Range(1.65f, 2.18f));
-            SpawnWindStreak(start - Vector3.up * cardExtents.y * 0.46f, sweepDelay + 0.28f, UnityEngine.Random.Range(1.55f, 2.08f));
             return sweepDelay;
         }
 
@@ -723,27 +723,6 @@ namespace Tarot.DailyReading
             StartCoroutine(AnimateWindDust(particle.transform, renderer, delay, duration, startScale, litColor));
         }
 
-        private void SpawnWindStreak(Vector3 localStart, float delay, float duration)
-        {
-            if (effectRoot == null || starStreamSprite == null)
-            {
-                return;
-            }
-
-            var stream = new GameObject("Daily Wind Stream");
-            stream.transform.SetParent(effectRoot, false);
-            stream.transform.localPosition = localStart;
-
-            var renderer = stream.AddComponent<SpriteRenderer>();
-            renderer.sprite = starStreamSprite;
-            renderer.color = new Color(0.66f, 0.82f, 1f, 0f);
-            renderer.sortingOrder = 2350 + UnityEngine.Random.Range(0, 80);
-
-            stream.transform.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(-10f, 6f));
-            stream.transform.localScale = new Vector3(UnityEngine.Random.Range(0.58f, 1.05f), UnityEngine.Random.Range(0.38f, 0.68f), 1f);
-            StartCoroutine(AnimateWindStreak(stream.transform, renderer, delay, duration));
-        }
-
         private static IEnumerator AnimateWindDust(Transform particle, SpriteRenderer renderer, float delay, float duration, float startScale, Color litColor)
         {
             var start = particle.localPosition;
@@ -781,37 +760,6 @@ namespace Tarot.DailyReading
             if (particle != null)
             {
                 Destroy(particle.gameObject);
-            }
-        }
-
-        private static IEnumerator AnimateWindStreak(Transform stream, SpriteRenderer renderer, float delay, float duration)
-        {
-            var start = stream.localPosition;
-            var startScale = stream.localScale;
-            var elapsed = 0f;
-
-            if (delay > 0f)
-            {
-                yield return new WaitForSeconds(delay);
-            }
-
-            while (elapsed < duration && stream != null)
-            {
-                elapsed += Time.deltaTime;
-                var t = Smooth01(elapsed / duration);
-                stream.localPosition = start + new Vector3(Mathf.Lerp(0f, 3.35f, t), Mathf.Lerp(0f, -0.42f, t), 0f);
-                stream.localScale = new Vector3(
-                    Mathf.Lerp(startScale.x, startScale.x * 0.18f, t),
-                    Mathf.Lerp(startScale.y, startScale.y * 0.5f, t),
-                    1f);
-                var color = new Color(0.78f, 0.9f, 1f, Mathf.Sin(t * Mathf.PI) * 0.52f);
-                renderer.color = color;
-                yield return null;
-            }
-
-            if (stream != null)
-            {
-                Destroy(stream.gameObject);
             }
         }
 
@@ -1151,31 +1099,6 @@ namespace Tarot.DailyReading
 
             texture.Apply();
             return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
-        }
-
-        private static Sprite CreateStarStreamSprite()
-        {
-            const int width = 96;
-            const int height = 10;
-            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp
-            };
-
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    var horizontal = Mathf.Sin((x / (float)(width - 1)) * Mathf.PI);
-                    var vertical = 1f - Mathf.Abs(y - (height - 1) * 0.5f) / (height * 0.5f);
-                    var alpha = Mathf.Clamp01(horizontal * vertical);
-                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-                }
-            }
-
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 96f);
         }
 
         private static Sprite CreateCardSprite(Color fill, Color line, bool drawBack)

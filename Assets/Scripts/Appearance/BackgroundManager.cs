@@ -32,5 +32,21 @@ namespace Tarot.Appearance
         {
             ActiveReadingBackground?.Restore();
         }
+
+        public void RotateStarfield(float degrees)
+        {
+            if (activeBackground is DefaultStarfieldBackground starfield)
+            {
+                starfield.RotateByDeckDegrees(degrees);
+            }
+        }
+
+        public void TriggerRotationMeteorTrail(float degrees)
+        {
+            if (activeBackground is DefaultStarfieldBackground starfield)
+            {
+                starfield.TriggerRotationMeteorTrail(degrees);
+            }
+        }
     }
 }

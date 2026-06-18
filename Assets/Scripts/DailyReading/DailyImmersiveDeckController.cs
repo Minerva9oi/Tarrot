@@ -40,6 +40,7 @@ namespace Tarot.DailyReading
         private CardDrawCardView hoveredCard;
 
         public event Action<CardDrawCardView> CardSelected;
+        public event Action<float> DeckRotated;
         public IReadOnlyList<CardDrawCardView> CardViews => cardViews;
 
         private void Update()
@@ -204,6 +205,7 @@ namespace Tarot.DailyReading
         private void Rotate(float degrees)
         {
             rotationOffset += degrees;
+            DeckRotated?.Invoke(degrees);
         }
 
         private static bool IsPointerOverUi()
