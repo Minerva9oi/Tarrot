@@ -19,8 +19,8 @@ namespace Tarot.DailyReading
         private const int WindDustCount = 520;
         private const int ImpactDustCount = 260;
         private const int ResidualGrainCount = 3600;
-        private const int MeshDustParticleCount = 4200;
-        private const int MeshImpactParticleCount = 950;
+        private const int MeshDustParticleCount = 10000;
+        private const int MeshImpactParticleCount = 2600;
         private const int MeshParticleQuadVertexCount = 4;
         private const float ResultCardScale = 2.16f;
         private const float SelectedPullScaleMultiplier = 1.055f;
@@ -524,8 +524,8 @@ namespace Tarot.DailyReading
             var unscaledOffset = RandomCardBackOffset(cardBounds, out var normalizedX, out var normalizedY);
             var localPosition = cardStart + new Vector3(unscaledOffset.x * cardScale, unscaledOffset.y * cardScale, 0f);
             var color = SampleCardBackDustColor(unscaledOffset, cardBounds);
-            color = Color.Lerp(color, Color.white, isImpact ? 0.34f : 0.2f);
-            color.a = Mathf.Min(1f, color.a * (isImpact ? 1.34f : 1.14f));
+            color = Color.Lerp(color, Color.white, isImpact ? 0.42f : 0.26f);
+            color.a = Mathf.Min(1f, color.a * (isImpact ? 1.48f : 1.26f));
 
             var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
             var raggedEdge =
@@ -534,8 +534,8 @@ namespace Tarot.DailyReading
             var releaseDelay = baseDelay + Smooth01(peelCoordinate) * (isImpact ? 1.5f : 1.68f) + raggedEdge +
                 UnityEngine.Random.Range(0f, isImpact ? 0.16f : 0.24f);
             var scale = isImpact
-                ? UnityEngine.Random.Range(0.13f, 0.27f)
-                : UnityEngine.Random.Range(0.068f, 0.145f);
+                ? UnityEngine.Random.Range(0.2f, 0.46f)
+                : UnityEngine.Random.Range(0.095f, 0.22f);
             var wind = isImpact
                 ? new Vector3(UnityEngine.Random.Range(2.65f, 4.65f), UnityEngine.Random.Range(-1.08f, -0.28f), 0f)
                 : new Vector3(UnityEngine.Random.Range(1.45f, 3.4f), UnityEngine.Random.Range(-0.7f, -0.06f), 0f);
