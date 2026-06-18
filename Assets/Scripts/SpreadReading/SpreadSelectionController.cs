@@ -55,6 +55,11 @@ namespace Tarot.SpreadReading
         private Image tooltipImage;
         private Outline tooltipOutline;
         private Shadow tooltipShadow;
+        private Image tooltipNoise;
+        private Image tooltipTopSheen;
+        private Image tooltipDiagonalSheen;
+        private Image tooltipBottomShade;
+        private Image tooltipEdgeGlint;
         private Text tooltipTitle;
         private Text tooltipBody;
         private Text tooltipMeta;
@@ -215,6 +220,7 @@ namespace Tarot.SpreadReading
 
             tooltipImage = tooltipObject.AddComponent<Image>();
             tooltipImage.raycastTarget = false;
+            tooltipObject.AddComponent<RectMask2D>();
             tooltipOutline = tooltipObject.AddComponent<Outline>();
             tooltipOutline.effectDistance = new Vector2(1.2f, -1.2f);
             tooltipShadow = tooltipObject.AddComponent<Shadow>();
@@ -225,6 +231,48 @@ namespace Tarot.SpreadReading
             tooltipRect.anchorMax = new Vector2(0.5f, 0.5f);
             tooltipRect.pivot = new Vector2(0f, 0.5f);
             tooltipRect.sizeDelta = new Vector2(470f, 174f);
+
+            tooltipBottomShade = CreateTooltipLayer(tooltipObject.transform, "Glass Bottom Shade");
+            var bottomRect = tooltipBottomShade.rectTransform;
+            bottomRect.anchorMin = new Vector2(0f, 0f);
+            bottomRect.anchorMax = new Vector2(1f, 0f);
+            bottomRect.pivot = new Vector2(0.5f, 0f);
+            bottomRect.anchoredPosition = Vector2.zero;
+            bottomRect.sizeDelta = new Vector2(0f, 64f);
+
+            tooltipNoise = CreateTooltipLayer(tooltipObject.transform, "Glass Grain");
+            tooltipNoise.sprite = CreateGlassNoiseSprite();
+            tooltipNoise.type = Image.Type.Tiled;
+            var noiseRect = tooltipNoise.rectTransform;
+            noiseRect.anchorMin = Vector2.zero;
+            noiseRect.anchorMax = Vector2.one;
+            noiseRect.offsetMin = Vector2.zero;
+            noiseRect.offsetMax = Vector2.zero;
+
+            tooltipTopSheen = CreateTooltipLayer(tooltipObject.transform, "Glass Top Sheen");
+            var topRect = tooltipTopSheen.rectTransform;
+            topRect.anchorMin = new Vector2(0f, 1f);
+            topRect.anchorMax = new Vector2(1f, 1f);
+            topRect.pivot = new Vector2(0.5f, 1f);
+            topRect.anchoredPosition = new Vector2(0f, -2f);
+            topRect.sizeDelta = new Vector2(-30f, 26f);
+
+            tooltipDiagonalSheen = CreateTooltipLayer(tooltipObject.transform, "Glass Diagonal Sheen");
+            var diagonalRect = tooltipDiagonalSheen.rectTransform;
+            diagonalRect.anchorMin = new Vector2(0.5f, 0.5f);
+            diagonalRect.anchorMax = new Vector2(0.5f, 0.5f);
+            diagonalRect.pivot = new Vector2(0.5f, 0.5f);
+            diagonalRect.anchoredPosition = new Vector2(44f, 22f);
+            diagonalRect.sizeDelta = new Vector2(520f, 16f);
+            diagonalRect.localRotation = Quaternion.Euler(0f, 0f, -12f);
+
+            tooltipEdgeGlint = CreateTooltipLayer(tooltipObject.transform, "Glass Edge Glint");
+            var edgeRect = tooltipEdgeGlint.rectTransform;
+            edgeRect.anchorMin = new Vector2(0f, 0f);
+            edgeRect.anchorMax = new Vector2(0f, 1f);
+            edgeRect.pivot = new Vector2(0f, 0.5f);
+            edgeRect.anchoredPosition = new Vector2(1.5f, 0f);
+            edgeRect.sizeDelta = new Vector2(3f, -20f);
 
             tooltipTitle = CreateText(tooltipObject.transform, string.Empty, 25, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
             tooltipTitle.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -264,6 +312,13 @@ namespace Tarot.SpreadReading
             tooltipTitle.color = style.Title;
             tooltipMeta.color = style.Meta;
             tooltipBody.color = style.Body;
+
+            var isGlass = tooltipStyle == SpreadTooltipStyle.Glass;
+            SetTooltipLayer(tooltipNoise, isGlass, new Color(0.72f, 0.9f, 1f, 0.08f));
+            SetTooltipLayer(tooltipTopSheen, isGlass, new Color(0.88f, 0.97f, 1f, 0.22f));
+            SetTooltipLayer(tooltipDiagonalSheen, isGlass, new Color(0.9f, 0.98f, 1f, 0.13f));
+            SetTooltipLayer(tooltipBottomShade, isGlass, new Color(0.01f, 0.025f, 0.04f, 0.22f));
+            SetTooltipLayer(tooltipEdgeGlint, isGlass, new Color(0.92f, 0.98f, 1f, 0.42f));
         }
 
         private void ShowTooltip(SpreadDefinition spread, RectTransform sourceRect)
@@ -323,12 +378,12 @@ namespace Tarot.SpreadReading
             return style switch
             {
                 SpreadTooltipStyle.Glass => new TooltipPalette(
-                    new Color(0.05f, 0.07f, 0.09f, 0.55f),
-                    new Color(0.68f, 0.82f, 0.88f, 0.36f),
-                    new Color(0f, 0f, 0f, 0.34f),
-                    new Color(0.9f, 0.96f, 1f, 1f),
-                    new Color(0.68f, 0.78f, 0.86f, 0.96f),
-                    new Color(0.82f, 0.88f, 0.92f, 0.96f)),
+                    new Color(0.035f, 0.055f, 0.072f, 0.46f),
+                    new Color(0.78f, 0.92f, 1f, 0.58f),
+                    new Color(0f, 0.015f, 0.025f, 0.48f),
+                    new Color(0.92f, 0.98f, 1f, 1f),
+                    new Color(0.7f, 0.84f, 0.92f, 0.98f),
+                    new Color(0.84f, 0.92f, 0.96f, 0.98f)),
                 SpreadTooltipStyle.Gold => new TooltipPalette(
                     new Color(0.065f, 0.048f, 0.025f, 0.9f),
                     new Color(0.92f, 0.66f, 0.28f, 0.74f),
@@ -344,6 +399,52 @@ namespace Tarot.SpreadReading
                     new Color(0.6f, 0.68f, 0.66f, 0.96f),
                     new Color(0.78f, 0.82f, 0.78f, 0.96f))
             };
+        }
+
+        private static Image CreateTooltipLayer(Transform parent, string name)
+        {
+            var layerObject = new GameObject(name);
+            layerObject.transform.SetParent(parent, false);
+
+            var image = layerObject.AddComponent<Image>();
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static void SetTooltipLayer(Image image, bool isVisible, Color color)
+        {
+            if (image == null)
+            {
+                return;
+            }
+
+            image.gameObject.SetActive(isVisible);
+            image.color = color;
+        }
+
+        private static Sprite CreateGlassNoiseSprite()
+        {
+            const int size = 48;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Repeat
+            };
+
+            var seed = 0x5f3759df;
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    seed = seed * 1103515245 + 12345;
+                    var value = ((seed >> 16) & 0xff) / 255f;
+                    var alpha = value > 0.64f ? Mathf.Lerp(0.03f, 0.2f, value) : 0f;
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
         }
 
         private readonly struct TooltipPalette
