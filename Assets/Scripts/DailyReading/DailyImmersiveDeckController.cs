@@ -307,7 +307,7 @@ namespace Tarot.DailyReading
 
         private static float GetResponsiveRingRadius(float halfWidth)
         {
-            return halfWidth * 5.35f;
+            return halfWidth * 4.95f;
         }
 
         private static float GetResponsiveCenterScale(float halfWidth, float halfHeight)

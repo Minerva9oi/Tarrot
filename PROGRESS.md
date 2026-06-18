@@ -216,3 +216,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Shuffled the daily reading deck order each time the daily deck is created so card positions feel freshly randomized like a shuffled deck.
 - Added shared tarot deck shuffling and rebuilt both daily and shared draw decks on reset so `再抽一次` and future spread modes get a fresh shuffled order.
 - Widened the daily immersive deck spacing again while expanding the visible arc enough to show roughly one additional card.
+- Reduced the daily immersive deck radius slightly so the extra visible card remains while card gaps are a bit tighter.
