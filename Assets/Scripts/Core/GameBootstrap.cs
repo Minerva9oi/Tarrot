@@ -1,6 +1,7 @@
 using UnityEngine;
 using Tarot.Appearance;
 using Tarot.DailyReading;
+using Tarot.SpreadReading;
 using Tarot.UI;
 
 namespace Tarot.Core
@@ -39,6 +40,32 @@ namespace Tarot.Core
                     Destroy(dailyObject);
                     menuObject.SetActive(true);
                     backgroundManager.SetIdle();
+                };
+            };
+            mainMenu.SpreadReadingRequested += () =>
+            {
+                menuObject.SetActive(false);
+                var spreadObject = new GameObject("Spread Selection");
+                var spreadSelection = spreadObject.AddComponent<SpreadSelectionController>();
+                spreadSelection.SetBackgroundManager(backgroundManager);
+                spreadSelection.BackRequested += () =>
+                {
+                    Destroy(spreadObject);
+                    menuObject.SetActive(true);
+                    backgroundManager.SetIdle();
+                };
+                spreadSelection.ThreeCardRequested += () =>
+                {
+                    spreadObject.SetActive(false);
+                    var threeCardObject = new GameObject("Three Card Reading");
+                    var threeCardReading = threeCardObject.AddComponent<ThreeCardReadingController>();
+                    threeCardReading.SetBackgroundManager(backgroundManager);
+                    threeCardReading.BackRequested += () =>
+                    {
+                        Destroy(threeCardObject);
+                        spreadObject.SetActive(true);
+                        backgroundManager.SetIdle();
+                    };
                 };
             };
         }

@@ -15,6 +15,7 @@ namespace Tarot.UI
 
         private Font defaultFont;
         public event Action DailyReadingRequested;
+        public event Action SpreadReadingRequested;
 
         private void Awake()
         {
@@ -111,7 +112,7 @@ namespace Tarot.UI
             return index switch
             {
                 0 => new MenuItem("每日运势", () => DailyReadingRequested?.Invoke()),
-                1 => new MenuItem("牌阵占卜", () => Debug.Log("Spread reading selected.")),
+                1 => new MenuItem("牌阵占卜", () => SpreadReadingRequested?.Invoke()),
                 2 => new MenuItem("占卜日记", () => Debug.Log("Journal selected.")),
                 3 => new MenuItem("设置", () => Debug.Log("Settings selected.")),
                 4 => new MenuItem("退出", Application.Quit),
