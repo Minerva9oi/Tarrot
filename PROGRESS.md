@@ -218,3 +218,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Widened the daily immersive deck spacing again while expanding the visible arc enough to show roughly one additional card.
 - Reduced the daily immersive deck radius slightly so the extra visible card remains while card gaps are a bit tighter.
 - Added a more colorful generated test card-back pattern so card-back dust dissolution can be visually inspected more clearly.
+- Reworked the unselected-card dust effect into a left-to-right card-back peel: particles now sample a structured grid from the card-back pattern, detach in a wind-swept wave, and linger longer before fading.
