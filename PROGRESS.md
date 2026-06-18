@@ -233,3 +233,4 @@ Important product, visual, and interaction decisions are confirmed before implem
 - Realigned the grain-peel card-back surface with particle release so dissolved areas do not keep showing the back pattern, while increasing particle count and roughly doubling particle diameter for stronger impact.
 - Retuned grain-peel particles toward the reference: sharper point sprites, higher per-card density, and smaller individual dots to avoid the blurred look caused by oversized soft particles.
 - Enlarged the daily immersive deck cards and slightly widened the ring radius while narrowing the visible arc so the card area feels more dramatic without collapsing the gaps.
+- Retuned the enlarged daily deck to a 2.00 max scale and restored the visible arc so roughly the original number of cards remains visible with slightly tighter gaps.
