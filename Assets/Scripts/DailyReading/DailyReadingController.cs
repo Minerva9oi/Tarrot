@@ -270,14 +270,13 @@ namespace Tarot.DailyReading
 
         private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
-            const float dissolveDuration = 3.58f;
+            const float dissolveDuration = 3.92f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
             var startColors = new Dictionary<CardDrawCardView, Color>();
             var startScales = new Dictionary<CardDrawCardView, Vector3>();
             var cardDissolveDelays = new Dictionary<CardDrawCardView, float>();
             var particleBatches = new List<CardBackParticleBatch>();
-            var peelSurfaces = new List<CardBackPeelSurface>();
             var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
             var selectedMoveStart = new Vector3(selectedStart.x, targetPosition.y, selectedStart.z);
             var selectedStartScale = selected.Transform.localScale.x;
@@ -300,9 +299,8 @@ namespace Tarot.DailyReading
                 dissolvingCards.Add(view);
                 startColors[view] = view.Renderer.color;
                 startScales[view] = view.Transform.localScale;
-                cardDissolveDelays[view] = GetCardDissolveDelay(view);
+                cardDissolveDelays[view] = GetCardDissolveDelay();
                 SpawnCardBackMeshParticles(view, particleBatches, cardDissolveDelays[view]);
-                SpawnCardBackPeelSurface(view, peelSurfaces, cardDissolveDelays[view]);
                 var hiddenColor = view.Renderer.color;
                 hiddenColor.a = 0f;
                 view.Renderer.color = hiddenColor;
@@ -331,7 +329,6 @@ namespace Tarot.DailyReading
                     view.Transform.localScale = Vector3.Lerp(startScales[view], startScales[view] * 0.96f, cardFadeProgress);
                 }
 
-                UpdateCardBackPeelSurfaces(peelSurfaces, elapsed);
                 UpdateCardBackParticleBatches(particleBatches, elapsed);
 
                 yield return null;
@@ -343,7 +340,6 @@ namespace Tarot.DailyReading
             }
 
             DestroyCardBackParticleBatches(particleBatches);
-            DestroyCardBackPeelSurfaces(peelSurfaces);
             yield return MoveSelectedCardToResult(selected, selectedMoveStart, targetPosition, orientation);
         }
 
@@ -463,10 +459,9 @@ namespace Tarot.DailyReading
             return sweepDelay;
         }
 
-        private float GetCardDissolveDelay(CardDrawCardView view)
+        private static float GetCardDissolveDelay()
         {
-            var start = transform.InverseTransformPoint(view.Transform.position);
-            return Mathf.InverseLerp(-6.5f, 6.5f, start.x) * 0.24f;
+            return UnityEngine.Random.Range(0f, 0.08f);
         }
 
         private void SpawnCardBackMeshParticles(CardDrawCardView view, List<CardBackParticleBatch> batches, float baseDelay)
@@ -540,15 +535,14 @@ namespace Tarot.DailyReading
             color = Color.Lerp(color, Color.white, isImpact ? 0.42f : 0.26f);
             color.a = Mathf.Min(1f, color.a * (isImpact ? 1.48f : 1.26f));
 
-            var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
-            var raggedEdge =
-                Mathf.Sin((normalizedY * 13.8f + normalizedX * 5.7f + UnityEngine.Random.value * 2.8f) * Mathf.PI) * 0.16f +
-                Mathf.Sin((normalizedY * 36.5f + normalizedX * 9.4f) * Mathf.PI) * 0.045f;
-            var releaseOffset = Smooth01(peelCoordinate) * (isImpact ? 1.42f : 1.6f) + raggedEdge +
-                UnityEngine.Random.Range(0f, isImpact ? 0.16f : 0.24f);
+            var centerDistance = Vector2.Distance(new Vector2(normalizedX, normalizedY), new Vector2(0.5f, 0.5f));
+            var patternHold = isImpact ? 0.46f : 0.54f;
+            var releaseOffset = patternHold +
+                Mathf.Clamp01(centerDistance * 1.12f) * UnityEngine.Random.Range(0.08f, 0.2f) +
+                UnityEngine.Random.Range(0f, isImpact ? 0.14f : 0.24f);
             var scale = isImpact
-                ? UnityEngine.Random.Range(0.2f, 0.46f)
-                : UnityEngine.Random.Range(0.095f, 0.22f);
+                ? UnityEngine.Random.Range(0.18f, 0.38f)
+                : UnityEngine.Random.Range(0.105f, 0.24f);
             var localDirection = new Vector2(offset.x, offset.y);
             if (localDirection.sqrMagnitude < 0.0001f)
             {
@@ -557,25 +551,25 @@ namespace Tarot.DailyReading
 
             localDirection.Normalize();
             var outward = isImpact
-                ? UnityEngine.Random.Range(0.52f, 1.38f)
-                : UnityEngine.Random.Range(0.24f, 0.88f);
+                ? UnityEngine.Random.Range(0.36f, 0.98f)
+                : UnityEngine.Random.Range(0.18f, 0.64f);
             var upward = isImpact
-                ? UnityEngine.Random.Range(0.92f, 1.92f)
-                : UnityEngine.Random.Range(0.62f, 1.48f);
+                ? UnityEngine.Random.Range(0.78f, 1.58f)
+                : UnityEngine.Random.Range(0.52f, 1.16f);
             var drift = new Vector3(
-                localDirection.x * outward + UnityEngine.Random.Range(-0.18f, 0.18f),
-                localDirection.y * outward * 0.42f + upward,
+                localDirection.x * outward + UnityEngine.Random.Range(-0.1f, 0.1f),
+                localDirection.y * outward * 0.36f + upward,
                 0f);
             var turbulence = isImpact
-                ? new Vector3(UnityEngine.Random.Range(-0.36f, 0.38f), UnityEngine.Random.Range(-0.24f, 0.3f), 0f)
-                : new Vector3(UnityEngine.Random.Range(-0.24f, 0.26f), UnityEngine.Random.Range(-0.18f, 0.24f), 0f);
+                ? new Vector3(UnityEngine.Random.Range(-0.28f, 0.3f), UnityEngine.Random.Range(-0.18f, 0.24f), 0f)
+                : new Vector3(UnityEngine.Random.Range(-0.18f, 0.2f), UnityEngine.Random.Range(-0.14f, 0.18f), 0f);
 
             return new CardBackParticleTemplate(
                 offset,
                 scale,
                 color,
                 Mathf.Max(0f, releaseOffset),
-                UnityEngine.Random.Range(isImpact ? 1.62f : 1.78f, isImpact ? 2.42f : 2.68f),
+                UnityEngine.Random.Range(isImpact ? 1.72f : 1.9f, isImpact ? 2.56f : 2.9f),
                 drift,
                 turbulence,
                 UnityEngine.Random.Range(0f, Mathf.PI * 2f),
@@ -613,10 +607,10 @@ namespace Tarot.DailyReading
                 {
                     var particle = batch.Particles[index];
                     var materialize = Smooth01(Mathf.InverseLerp(
-                        particle.ReleaseDelay - (particle.IsImpact ? 0.16f : 0.22f),
-                        particle.ReleaseDelay + 0.02f,
+                        particle.ReleaseDelay - (particle.IsImpact ? 0.5f : 0.58f),
+                        particle.ReleaseDelay - (particle.IsImpact ? 0.28f : 0.34f),
                         elapsed));
-                    var loosen = Smooth01(Mathf.InverseLerp(particle.ReleaseDelay - 0.16f, particle.ReleaseDelay + 0.06f, elapsed));
+                    var loosen = Smooth01(Mathf.InverseLerp(particle.ReleaseDelay - 0.06f, particle.ReleaseDelay + 0.2f, elapsed));
                     var releaseLinear = Mathf.Clamp01(Mathf.InverseLerp(particle.ReleaseDelay, particle.ReleaseDelay + particle.Duration, elapsed));
                     var release = Smooth01(releaseLinear);
                     var tremble = new Vector3(
@@ -628,9 +622,9 @@ namespace Tarot.DailyReading
                         Mathf.Cos(releaseLinear * (particle.IsImpact ? 14f : 11f) + particle.Phase) * particle.Turbulence.y,
                         0f);
                     var driftEase = Smooth01(Mathf.InverseLerp(0.06f, 1f, releaseLinear));
-                    var position = particle.StartPosition + tremble + (particle.Wind * driftEase) + (gust * release * 0.58f);
-                    var expansionPulse = 1f + Mathf.Sin(Mathf.Clamp01(releaseLinear / 0.32f) * Mathf.PI) * (particle.IsImpact ? 0.22f : 0.13f);
-                    var scale = particle.StartScale * expansionPulse * Mathf.Lerp(1f, particle.IsImpact ? 0.42f : 0.3f, release);
+                    var position = particle.StartPosition + tremble + (particle.Wind * driftEase) + (gust * release * 0.5f);
+                    var expansionPulse = 1f + Mathf.Sin(Mathf.Clamp01(releaseLinear / 0.34f) * Mathf.PI) * (particle.IsImpact ? 0.16f : 0.1f);
+                    var scale = particle.StartScale * expansionPulse * Mathf.Lerp(1f, particle.IsImpact ? 0.48f : 0.36f, release);
                     var color = particle.BaseColor;
                     var fadeOutStart = particle.IsImpact ? 0.68f : 0.74f;
                     color.a = particle.BaseColor.a * materialize * (1f - Smooth01(Mathf.InverseLerp(fadeOutStart, 1f, release)));
@@ -790,139 +784,6 @@ namespace Tarot.DailyReading
                 if (grain.Transform != null)
                 {
                     Destroy(grain.Transform.gameObject);
-                }
-            }
-        }
-
-        private void SpawnCardBackPeelSurface(CardDrawCardView view, List<CardBackPeelSurface> surfaces, float baseDelay)
-        {
-            if (effectRoot == null || cardBackSprite == null || cardBackSprite.texture == null)
-            {
-                return;
-            }
-
-            var rect = cardBackSprite.textureRect;
-            var width = Mathf.RoundToInt(rect.width);
-            var height = Mathf.RoundToInt(rect.height);
-            var sourcePixels = new Color[width * height];
-            var workingPixels = new Color[sourcePixels.Length];
-            var sourceTexture = cardBackSprite.texture;
-
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    var textureX = (rect.xMin + x + 0.5f) / sourceTexture.width;
-                    var textureY = (rect.yMin + y + 0.5f) / sourceTexture.height;
-                    var color = sourceTexture.GetPixelBilinear(textureX, textureY);
-                    sourcePixels[y * width + x] = color;
-                    workingPixels[y * width + x] = color;
-                }
-            }
-
-            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp
-            };
-            texture.SetPixels(workingPixels);
-            texture.Apply(false);
-
-            var surfaceObject = new GameObject("Daily Card Back Peel Surface");
-            surfaceObject.transform.SetParent(effectRoot, false);
-            surfaceObject.transform.localPosition = transform.InverseTransformPoint(view.Transform.position);
-            surfaceObject.transform.rotation = view.Transform.rotation;
-            surfaceObject.transform.localScale = view.Transform.lossyScale;
-
-            var renderer = surfaceObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), cardBackSprite.pixelsPerUnit);
-            renderer.color = view.Renderer.color;
-            renderer.sortingOrder = 2310;
-
-            surfaces.Add(new CardBackPeelSurface(
-                surfaceObject.transform,
-                renderer,
-                texture,
-                sourcePixels,
-                workingPixels,
-                width,
-                height,
-                baseDelay));
-        }
-
-        private static void UpdateCardBackPeelSurfaces(List<CardBackPeelSurface> surfaces, float elapsed)
-        {
-            foreach (var surface in surfaces)
-            {
-                if (surface.Transform == null || surface.Texture == null)
-                {
-                    continue;
-                }
-
-                var rawProgress = Mathf.Clamp01(Mathf.InverseLerp(surface.BaseDelay + 0.02f, surface.BaseDelay + 2.28f, elapsed));
-                var progress = Mathf.Pow(rawProgress, 0.88f);
-                if (rawProgress > 0.88f)
-                {
-                    progress = Mathf.Lerp(progress, 1.14f, Smooth01(Mathf.InverseLerp(0.88f, 1f, rawProgress)));
-                }
-
-                var changedPixels = false;
-
-                for (var y = 0; y < surface.Height; y++)
-                {
-                    var normalizedY = y / (float)(surface.Height - 1);
-                    for (var x = 0; x < surface.Width; x++)
-                    {
-                        var normalizedX = x / (float)(surface.Width - 1);
-                        var peelCoordinate = GetPeelCoordinate(normalizedX, normalizedY);
-                        var raggedEdge =
-                            Mathf.Sin((normalizedY * 13.5f + normalizedX * 4.1f + progress * 2.4f) * Mathf.PI) * 0.055f +
-                            Mathf.Sin((normalizedY * 32.3f + normalizedX * 11.2f) * Mathf.PI) * 0.034f;
-                        var edge = progress + raggedEdge;
-                        var edgeWidth = 0.11f;
-                        var remaining = Smooth01(Mathf.InverseLerp(edge - edgeWidth, edge + edgeWidth, peelCoordinate));
-
-                        if (Mathf.Abs(peelCoordinate - edge) < 0.2f)
-                        {
-                            var fracture =
-                                Mathf.Sin((normalizedX * 78f + normalizedY * 108f + progress * 23f) * Mathf.PI) *
-                                Mathf.Sin((normalizedX * 31f - normalizedY * 47f) * Mathf.PI);
-                            remaining *= Mathf.Lerp(0.28f, 1f, Mathf.Clamp01(fracture * 0.5f + 0.5f));
-                        }
-
-                        var index = y * surface.Width + x;
-                        var color = surface.SourcePixels[index];
-                        color.a *= remaining;
-                        surface.WorkingPixels[index] = color;
-                        changedPixels = true;
-                    }
-                }
-
-                if (changedPixels)
-                {
-                    surface.Texture.SetPixels(surface.WorkingPixels);
-                    surface.Texture.Apply(false);
-                }
-            }
-        }
-
-        private static void DestroyCardBackPeelSurfaces(List<CardBackPeelSurface> surfaces)
-        {
-            foreach (var surface in surfaces)
-            {
-                if (surface.Renderer != null && surface.Renderer.sprite != null)
-                {
-                    Destroy(surface.Renderer.sprite);
-                }
-
-                if (surface.Texture != null)
-                {
-                    Destroy(surface.Texture);
-                }
-
-                if (surface.Transform != null)
-                {
-                    Destroy(surface.Transform.gameObject);
                 }
             }
         }
@@ -1451,38 +1312,6 @@ namespace Tarot.DailyReading
 
             texture.Apply();
             return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 180f);
-        }
-
-        private sealed class CardBackPeelSurface
-        {
-            public CardBackPeelSurface(
-                Transform transform,
-                SpriteRenderer renderer,
-                Texture2D texture,
-                Color[] sourcePixels,
-                Color[] workingPixels,
-                int width,
-                int height,
-                float baseDelay)
-            {
-                Transform = transform;
-                Renderer = renderer;
-                Texture = texture;
-                SourcePixels = sourcePixels;
-                WorkingPixels = workingPixels;
-                Width = width;
-                Height = height;
-                BaseDelay = baseDelay;
-            }
-
-            public Transform Transform { get; }
-            public SpriteRenderer Renderer { get; }
-            public Texture2D Texture { get; }
-            public Color[] SourcePixels { get; }
-            public Color[] WorkingPixels { get; }
-            public int Width { get; }
-            public int Height { get; }
-            public float BaseDelay { get; }
         }
 
         private sealed class CardBackParticleBatch
