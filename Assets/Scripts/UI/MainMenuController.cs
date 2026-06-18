@@ -13,8 +13,6 @@ namespace Tarot.UI
         [SerializeField] private string title = "Tarot";
         [SerializeField] private Color textColor = new(0.9f, 0.9f, 0.88f, 1f);
         [SerializeField] private Color mutedTextColor = new(0.58f, 0.6f, 0.66f, 1f);
-        [SerializeField] private Color buttonColor = new(0.045f, 0.048f, 0.06f, 0.68f);
-        [SerializeField] private Color buttonHighlightColor = new(0.12f, 0.13f, 0.17f, 0.86f);
 
         private readonly SpreadMenuItem[] spreadItems =
         {
@@ -48,9 +46,12 @@ namespace Tarot.UI
         private RectTransform spreadColumn;
         private RectTransform detailPanel;
         private RectTransform placeholderPanel;
+        private RectTransform firstSeparator;
+        private RectTransform secondSeparator;
         private CanvasGroup spreadGroup;
         private CanvasGroup detailGroup;
         private CanvasGroup placeholderGroup;
+        private CanvasGroup separatorGroup;
         private Text detailTitle;
         private Text detailMeta;
         private Text detailBody;
@@ -92,6 +93,7 @@ namespace Tarot.UI
             CreateSpreadColumn(canvas.transform);
             CreateDetailPanel(canvas.transform);
             CreatePlaceholderPanel(canvas.transform);
+            CreateSeparators(canvas.transform);
         }
 
         private void SelectHome()
@@ -101,6 +103,7 @@ namespace Tarot.UI
             SetColumnVisible(spreadGroup, false);
             SetColumnVisible(detailGroup, false);
             SetColumnVisible(placeholderGroup, false);
+            SetColumnVisible(separatorGroup, false);
             RefreshMainButtons();
         }
 
@@ -116,6 +119,7 @@ namespace Tarot.UI
                 SetColumnVisible(spreadGroup, true);
                 SetColumnVisible(detailGroup, true);
                 SetColumnVisible(placeholderGroup, false);
+                SetColumnVisible(separatorGroup, true);
                 ShowSpreadDetails(selectedSpreadIndex);
                 RefreshSpreadButtons();
                 return;
@@ -124,6 +128,7 @@ namespace Tarot.UI
             SetColumnVisible(spreadGroup, false);
             SetColumnVisible(detailGroup, false);
             SetColumnVisible(placeholderGroup, true);
+            SetColumnVisible(separatorGroup, true);
             ShowPlaceholder(index);
         }
 
@@ -160,16 +165,18 @@ namespace Tarot.UI
 
         private void AnimateLayout()
         {
-            var targetMainX = selectedMainIndex < 0 ? 0f : -690f;
-            var targetSpreadX = isSpreadOpen ? -258f : -128f;
-            var targetDetailX = isSpreadOpen ? 438f : 610f;
-            var targetPlaceholderX = selectedMainIndex >= 0 && !isSpreadOpen ? 120f : 360f;
+            var targetMainX = selectedMainIndex < 0 ? 0f : -610f;
+            var targetSpreadX = isSpreadOpen ? -300f : -128f;
+            var targetDetailX = isSpreadOpen ? 288f : 610f;
+            var targetPlaceholderX = selectedMainIndex >= 0 && !isSpreadOpen ? 108f : 360f;
             var t = 1f - Mathf.Exp(-ColumnAnimationSpeed * Time.unscaledDeltaTime);
 
             mainColumn.anchoredPosition = Vector2.Lerp(mainColumn.anchoredPosition, new Vector2(targetMainX, -20f), t);
             spreadColumn.anchoredPosition = Vector2.Lerp(spreadColumn.anchoredPosition, new Vector2(targetSpreadX, -28f), t);
             detailPanel.anchoredPosition = Vector2.Lerp(detailPanel.anchoredPosition, new Vector2(targetDetailX, -28f), t);
             placeholderPanel.anchoredPosition = Vector2.Lerp(placeholderPanel.anchoredPosition, new Vector2(targetPlaceholderX, -28f), t);
+            firstSeparator.anchoredPosition = Vector2.Lerp(firstSeparator.anchoredPosition, new Vector2(-462f, -26f), t);
+            secondSeparator.anchoredPosition = Vector2.Lerp(secondSeparator.anchoredPosition, new Vector2(-34f, -26f), t);
         }
 
         private Canvas CreateCanvas()
@@ -260,43 +267,53 @@ namespace Tarot.UI
 
         private void CreateDetailPanel(Transform parent)
         {
-            detailPanel = CreateGlassPanel(parent, "Spread Detail Panel", new Vector2(438f, -28f), new Vector2(560f, 318f));
+            detailPanel = CreateColumn(parent, "Spread Detail Text", new Vector2(288f, -28f), new Vector2(560f, 318f));
             detailGroup = detailPanel.gameObject.AddComponent<CanvasGroup>();
 
-            detailTitle = CreateText("Detail Title", detailPanel, string.Empty, 32, FontStyle.Bold, new Color(0.94f, 0.98f, 1f, 1f), TextAnchor.UpperLeft);
+            detailTitle = CreateText("Detail Title", detailPanel, string.Empty, 34, FontStyle.Bold, new Color(0.94f, 0.94f, 0.88f, 1f), TextAnchor.UpperLeft);
             detailTitle.rectTransform.anchoredPosition = new Vector2(0f, 108f);
             detailTitle.rectTransform.sizeDelta = new Vector2(478f, 44f);
 
-            detailMeta = CreateText("Detail Meta", detailPanel, string.Empty, 18, FontStyle.Normal, new Color(0.76f, 0.86f, 0.9f, 0.96f), TextAnchor.UpperLeft);
-            detailMeta.rectTransform.anchoredPosition = new Vector2(0f, 72f);
+            detailMeta = CreateText("Detail Meta", detailPanel, string.Empty, 20, FontStyle.Normal, new Color(0.66f, 0.7f, 0.72f, 0.96f), TextAnchor.UpperLeft);
+            detailMeta.rectTransform.anchoredPosition = new Vector2(0f, 68f);
             detailMeta.rectTransform.sizeDelta = new Vector2(478f, 30f);
 
-            detailBody = CreateText("Detail Body", detailPanel, string.Empty, 20, FontStyle.Normal, new Color(0.84f, 0.9f, 0.92f, 0.98f), TextAnchor.UpperLeft);
-            detailBody.rectTransform.anchoredPosition = new Vector2(0f, 14f);
-            detailBody.rectTransform.sizeDelta = new Vector2(478f, 86f);
+            detailBody = CreateText("Detail Body", detailPanel, string.Empty, 22, FontStyle.Normal, new Color(0.84f, 0.86f, 0.82f, 0.98f), TextAnchor.UpperLeft);
+            detailBody.rectTransform.anchoredPosition = new Vector2(0f, 2f);
+            detailBody.rectTransform.sizeDelta = new Vector2(478f, 104f);
 
-            CreatePanelLine(detailPanel, "Detail Divider", new Vector2(0f, -46f), 382f, new Color(0.84f, 0.66f, 0.34f, 0.36f));
+            CreatePanelLine(detailPanel, "Detail Divider", new Vector2(0f, -64f), 410f, new Color(0.72f, 0.55f, 0.26f, 0.52f));
 
-            detailPositions = CreateText("Detail Positions", detailPanel, string.Empty, 18, FontStyle.Normal, new Color(0.86f, 0.74f, 0.45f, 0.98f), TextAnchor.UpperLeft);
-            detailPositions.rectTransform.anchoredPosition = new Vector2(0f, -70f);
+            detailPositions = CreateText("Detail Positions", detailPanel, string.Empty, 19, FontStyle.Normal, new Color(0.86f, 0.74f, 0.45f, 0.98f), TextAnchor.UpperLeft);
+            detailPositions.rectTransform.anchoredPosition = new Vector2(0f, -90f);
             detailPositions.rectTransform.sizeDelta = new Vector2(478f, 34f);
 
-            startSpreadButton = CreateGlassButton(detailPanel, "开始抽牌", new Vector2(0f, -120f), new Vector2(188f, 46f), () => ThreeCardReadingRequested?.Invoke());
+            startSpreadButton = CreateTextButton(detailPanel, "开始抽牌", new Vector2(0f, -132f), new Vector2(188f, 46f), () => ThreeCardReadingRequested?.Invoke());
             startSpreadLabel = startSpreadButton.GetComponentInChildren<Text>();
         }
 
         private void CreatePlaceholderPanel(Transform parent)
         {
-            placeholderPanel = CreateGlassPanel(parent, "Placeholder Detail Panel", new Vector2(360f, -28f), new Vector2(560f, 224f));
+            placeholderPanel = CreateColumn(parent, "Placeholder Detail Text", new Vector2(360f, -28f), new Vector2(560f, 224f));
             placeholderGroup = placeholderPanel.gameObject.AddComponent<CanvasGroup>();
 
-            placeholderTitle = CreateText("Placeholder Title", placeholderPanel, string.Empty, 34, FontStyle.Bold, new Color(0.92f, 0.98f, 1f, 1f), TextAnchor.UpperLeft);
+            placeholderTitle = CreateText("Placeholder Title", placeholderPanel, string.Empty, 34, FontStyle.Bold, new Color(0.94f, 0.94f, 0.88f, 1f), TextAnchor.UpperLeft);
             placeholderTitle.rectTransform.anchoredPosition = new Vector2(0f, 62f);
             placeholderTitle.rectTransform.sizeDelta = new Vector2(482f, 46f);
 
-            placeholderBody = CreateText("Placeholder Body", placeholderPanel, string.Empty, 22, FontStyle.Normal, new Color(0.84f, 0.9f, 0.92f, 0.98f), TextAnchor.UpperLeft);
+            placeholderBody = CreateText("Placeholder Body", placeholderPanel, string.Empty, 22, FontStyle.Normal, new Color(0.84f, 0.86f, 0.82f, 0.98f), TextAnchor.UpperLeft);
             placeholderBody.rectTransform.anchoredPosition = new Vector2(0f, -8f);
             placeholderBody.rectTransform.sizeDelta = new Vector2(482f, 86f);
+        }
+
+        private void CreateSeparators(Transform parent)
+        {
+            var groupObject = new GameObject("Navigation Separators");
+            groupObject.transform.SetParent(parent, false);
+            separatorGroup = groupObject.AddComponent<CanvasGroup>();
+
+            firstSeparator = CreateVerticalLine(groupObject.transform, "Main Separator", new Vector2(-462f, -26f), 520f);
+            secondSeparator = CreateVerticalLine(groupObject.transform, "Detail Separator", new Vector2(-34f, -26f), 520f);
         }
 
         private RectTransform CreateColumn(Transform parent, string name, Vector2 position, Vector2 size)
@@ -311,33 +328,6 @@ namespace Tarot.UI
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
             return rect;
-        }
-
-        private RectTransform CreateGlassPanel(Transform parent, string name, Vector2 position, Vector2 size)
-        {
-            var panel = CreateColumn(parent, name, position, size);
-
-            var image = panel.gameObject.AddComponent<Image>();
-            image.color = new Color(0.026f, 0.045f, 0.058f, 0.38f);
-            image.raycastTarget = false;
-
-            panel.gameObject.AddComponent<RectMask2D>();
-
-            var outline = panel.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.78f, 0.92f, 1f, 0.46f);
-            outline.effectDistance = new Vector2(1.2f, -1.2f);
-
-            var shadow = panel.gameObject.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0.015f, 0.025f, 0.48f);
-            shadow.effectDistance = new Vector2(0f, -9f);
-
-            AddPanelLayer(panel, "Bottom Shade", new Color(0.01f, 0.025f, 0.04f, 0.16f), new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 26f), new Vector2(-44f, 66f), 0f);
-            AddPanelLayer(panel, "Glass Grain", new Color(0.72f, 0.9f, 1f, 0.055f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 0f, CreateGlassNoiseSprite(), Image.Type.Tiled);
-            AddPanelLayer(panel, "Top Sheen", new Color(0.88f, 0.97f, 1f, 0.13f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -15f), new Vector2(-54f, 22f), 0f);
-            AddPanelLayer(panel, "Mystic Diagonal Glint", new Color(0.9f, 0.98f, 1f, 0.075f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(44f, 62f), new Vector2(size.x + 42f, 13f), -12f);
-            AddPanelLayer(panel, "Mystic Astro Line", new Color(0.84f, 0.66f, 0.34f, 0.14f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-122f, -86f), new Vector2(size.x * 0.56f, 2f), 0f);
-            AddPanelLayer(panel, "Left Edge Glint", new Color(0.92f, 0.98f, 1f, 0.34f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1.5f, 0f), new Vector2(2.5f, -28f), 0f);
-            return panel;
         }
 
         private static Image CreatePanelLine(Transform parent, string name, Vector2 position, float width, Color color)
@@ -357,34 +347,22 @@ namespace Tarot.UI
             return image;
         }
 
-        private static void AddPanelLayer(
-            RectTransform parent,
-            string name,
-            Color color,
-            Vector2 anchorMin,
-            Vector2 anchorMax,
-            Vector2 anchoredPosition,
-            Vector2 size,
-            float rotation,
-            Sprite sprite = null,
-            Image.Type imageType = Image.Type.Simple)
+        private static RectTransform CreateVerticalLine(Transform parent, string name, Vector2 position, float height)
         {
-            var layerObject = new GameObject(name);
-            layerObject.transform.SetParent(parent, false);
+            var lineObject = new GameObject(name);
+            lineObject.transform.SetParent(parent, false);
 
-            var image = layerObject.AddComponent<Image>();
-            image.color = color;
+            var image = lineObject.AddComponent<Image>();
+            image.color = new Color(0.72f, 0.55f, 0.26f, 0.58f);
             image.raycastTarget = false;
-            image.sprite = sprite;
-            image.type = imageType;
 
             var rect = image.rectTransform;
-            rect.anchorMin = anchorMin;
-            rect.anchorMax = anchorMax;
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = size;
-            rect.localRotation = Quaternion.Euler(0f, 0f, rotation);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(2.2f, height);
+            return rect;
         }
 
         private MenuButton CreateNavButton(RectTransform parent, string label, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction action, bool isEnabled)
@@ -393,7 +371,7 @@ namespace Tarot.UI
             buttonObject.transform.SetParent(parent, false);
 
             var image = buttonObject.AddComponent<Image>();
-            image.color = isEnabled ? buttonColor : new Color(0.035f, 0.038f, 0.046f, 0.52f);
+            image.color = Color.clear;
 
             var button = buttonObject.AddComponent<Button>();
             button.targetGraphic = image;
@@ -401,11 +379,11 @@ namespace Tarot.UI
             button.onClick.AddListener(action);
 
             var colors = button.colors;
-            colors.normalColor = image.color;
-            colors.highlightedColor = buttonHighlightColor;
-            colors.pressedColor = new Color(0.18f, 0.17f, 0.18f, 0.94f);
-            colors.selectedColor = buttonHighlightColor;
-            colors.disabledColor = image.color;
+            colors.normalColor = Color.clear;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.045f);
+            colors.pressedColor = new Color(1f, 1f, 1f, 0.075f);
+            colors.selectedColor = Color.clear;
+            colors.disabledColor = Color.clear;
             colors.fadeDuration = 0.18f;
             button.colors = colors;
 
@@ -416,16 +394,7 @@ namespace Tarot.UI
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
 
-            var accentObject = new GameObject("Accent");
-            accentObject.transform.SetParent(buttonObject.transform, false);
-            var accent = accentObject.AddComponent<Image>();
-            accent.color = new Color(0.84f, 0.66f, 0.34f, 0f);
-            accent.raycastTarget = false;
-            accent.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            accent.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            accent.rectTransform.pivot = new Vector2(0f, 0.5f);
-            accent.rectTransform.anchoredPosition = new Vector2(0f, 0f);
-            accent.rectTransform.sizeDelta = new Vector2(3f, size.y - 14f);
+            var pointer = CreatePointer(buttonObject.transform, "Pointer", new Vector2(9f, 0f));
 
             var labelText = CreateText("Label", buttonObject.transform, label, 24, FontStyle.Normal, isEnabled ? textColor : new Color(0.5f, 0.52f, 0.56f, 0.92f), TextAnchor.MiddleLeft);
             var labelRect = labelText.rectTransform;
@@ -434,17 +403,67 @@ namespace Tarot.UI
             labelRect.offsetMin = new Vector2(28f, 0f);
             labelRect.offsetMax = new Vector2(-16f, 0f);
 
-            return new MenuButton(button, image, accent, labelText);
+            return new MenuButton(button, image, pointer, labelText);
         }
 
-        private Button CreateGlassButton(Transform parent, string label, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction action)
+        private Button CreateTextButton(Transform parent, string label, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction action)
         {
             var button = CreateNavButton(parent.GetComponent<RectTransform>(), label, position, size, action, true);
-            button.Image.color = new Color(0.08f, 0.095f, 0.11f, 0.72f);
             button.Label.alignment = TextAnchor.MiddleCenter;
+            button.Label.color = new Color(0.86f, 0.74f, 0.45f, 1f);
             button.Label.rectTransform.offsetMin = Vector2.zero;
             button.Label.rectTransform.offsetMax = Vector2.zero;
             return button.Button;
+        }
+
+        private static CanvasGroup CreatePointer(Transform parent, string name, Vector2 position)
+        {
+            var root = new GameObject(name);
+            root.transform.SetParent(parent, false);
+            var group = root.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+
+            var rect = root.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(0f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(30f, 28f);
+
+            var shadowObject = new GameObject("Pointer Shadow");
+            shadowObject.transform.SetParent(root.transform, false);
+            var shadow = shadowObject.AddComponent<Image>();
+            shadow.sprite = CreateTriangleSprite(new Color(0f, 0f, 0f, 0.54f));
+            shadow.raycastTarget = false;
+            shadow.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            shadow.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            shadow.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            shadow.rectTransform.anchoredPosition = new Vector2(2.4f, -2.2f);
+            shadow.rectTransform.sizeDelta = new Vector2(24f, 22f);
+
+            var faceObject = new GameObject("Pointer Face");
+            faceObject.transform.SetParent(root.transform, false);
+            var face = faceObject.AddComponent<Image>();
+            face.sprite = CreateTriangleSprite(new Color(0.9f, 0.7f, 0.3f, 1f));
+            face.raycastTarget = false;
+            face.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            face.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            face.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            face.rectTransform.anchoredPosition = Vector2.zero;
+            face.rectTransform.sizeDelta = new Vector2(24f, 22f);
+
+            var highlightObject = new GameObject("Pointer Highlight");
+            highlightObject.transform.SetParent(root.transform, false);
+            var highlight = highlightObject.AddComponent<Image>();
+            highlight.color = new Color(1f, 0.92f, 0.58f, 0.82f);
+            highlight.raycastTarget = false;
+            highlight.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            highlight.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            highlight.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            highlight.rectTransform.anchoredPosition = new Vector2(-3f, 4f);
+            highlight.rectTransform.sizeDelta = new Vector2(7f, 2f);
+
+            return group;
         }
 
         private Text CreateText(string objectName, Transform parent, string value, int fontSize, FontStyle fontStyle, Color color, TextAnchor alignment)
@@ -487,8 +506,9 @@ namespace Tarot.UI
 
         private void SetButtonSelected(MenuButton button, bool isSelected)
         {
-            button.Image.color = isSelected ? new Color(0.085f, 0.105f, 0.118f, 0.9f) : buttonColor;
-            button.Accent.color = isSelected ? new Color(0.84f, 0.66f, 0.34f, 0.92f) : new Color(0.84f, 0.66f, 0.34f, 0f);
+            button.Image.color = Color.clear;
+            button.Pointer.alpha = isSelected ? 1f : 0f;
+            button.Label.color = isSelected ? new Color(0.95f, 0.92f, 0.82f, 1f) : textColor;
         }
 
         private static void SetColumnVisible(CanvasGroup group, bool isVisible)
@@ -541,24 +561,24 @@ namespace Tarot.UI
             eventSystemObject.AddComponent<StandaloneInputModule>();
         }
 
-        private static Sprite CreateGlassNoiseSprite()
+        private static Sprite CreateTriangleSprite(Color color)
         {
-            const int size = 48;
+            const int size = 32;
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Repeat
+                wrapMode = TextureWrapMode.Clamp
             };
 
-            var seed = 0x4f1bbcdc;
             for (var y = 0; y < size; y++)
             {
                 for (var x = 0; x < size; x++)
                 {
-                    seed = seed * 1103515245 + 12345;
-                    var value = ((seed >> 16) & 0xff) / 255f;
-                    var alpha = value > 0.67f ? Mathf.Lerp(0.03f, 0.18f, value) : 0f;
-                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                    var normalizedX = x / (float)(size - 1);
+                    var normalizedY = Mathf.Abs(y / (float)(size - 1) - 0.5f) * 2f;
+                    var inside = normalizedX <= 0.92f && normalizedY <= 1f - normalizedX / 0.92f;
+                    var pixel = inside ? color : Color.clear;
+                    texture.SetPixel(x, y, pixel);
                 }
             }
 
@@ -589,17 +609,17 @@ namespace Tarot.UI
 
         private readonly struct MenuButton
         {
-            public MenuButton(Button button, Image image, Image accent, Text label)
+            public MenuButton(Button button, Image image, CanvasGroup pointer, Text label)
             {
                 Button = button;
                 Image = image;
-                Accent = accent;
+                Pointer = pointer;
                 Label = label;
             }
 
             public Button Button { get; }
             public Image Image { get; }
-            public Image Accent { get; }
+            public CanvasGroup Pointer { get; }
             public Text Label { get; }
         }
 
