@@ -138,8 +138,8 @@ namespace Tarot.UI
         {
             var item = spreadItems[index];
             detailTitle.text = item.Title;
-            detailMeta.text = $"{item.CardCount} 张牌 · {item.Summary}";
-            detailBody.text = item.Description;
+            detailMeta.text = $"{item.CardCount} 张牌";
+            detailBody.text = $"{item.Summary}\n{item.Description}";
             detailPositions.text = $"牌位：{item.Positions}";
             startSpreadButton.gameObject.SetActive(item.IsAvailable);
             startSpreadButton.interactable = item.IsAvailable;
@@ -161,8 +161,8 @@ namespace Tarot.UI
         private void AnimateLayout()
         {
             var targetMainX = selectedMainIndex < 0 ? 0f : -690f;
-            var targetSpreadX = isSpreadOpen ? -145f : -40f;
-            var targetDetailX = isSpreadOpen ? 472f : 610f;
+            var targetSpreadX = isSpreadOpen ? -258f : -128f;
+            var targetDetailX = isSpreadOpen ? 438f : 610f;
             var targetPlaceholderX = selectedMainIndex >= 0 && !isSpreadOpen ? 120f : 360f;
             var t = 1f - Mathf.Exp(-ColumnAnimationSpeed * Time.unscaledDeltaTime);
 
@@ -239,10 +239,6 @@ namespace Tarot.UI
             spreadColumn = CreateColumn(parent, "Spread Navigation", new Vector2(-40f, -28f), new Vector2(430f, 330f));
             spreadGroup = spreadColumn.gameObject.AddComponent<CanvasGroup>();
 
-            var heading = CreateText("Spread Heading", spreadColumn, "牌阵占卜", 31, FontStyle.Normal, textColor, TextAnchor.MiddleLeft);
-            heading.rectTransform.anchoredPosition = new Vector2(0f, 130f);
-            heading.rectTransform.sizeDelta = new Vector2(390f, 44f);
-
             spreadButtons = new MenuButton[spreadItems.Length];
             for (var index = 0; index < spreadItems.Length; index++)
             {
@@ -251,7 +247,7 @@ namespace Tarot.UI
                 var button = CreateNavButton(
                     spreadColumn,
                     item.IsAvailable ? item.Title : $"{item.Title}  即将开放",
-                    new Vector2(0f, 58f - index * 76f),
+                    new Vector2(0f, 120f - index * 76f),
                     new Vector2(390f, 58f),
                     () => SelectSpread(captured),
                     true);
@@ -264,26 +260,28 @@ namespace Tarot.UI
 
         private void CreateDetailPanel(Transform parent)
         {
-            detailPanel = CreateGlassPanel(parent, "Spread Detail Panel", new Vector2(472f, -28f), new Vector2(560f, 332f));
+            detailPanel = CreateGlassPanel(parent, "Spread Detail Panel", new Vector2(438f, -28f), new Vector2(560f, 318f));
             detailGroup = detailPanel.gameObject.AddComponent<CanvasGroup>();
 
-            detailTitle = CreateText("Detail Title", detailPanel, string.Empty, 34, FontStyle.Bold, new Color(0.92f, 0.98f, 1f, 1f), TextAnchor.UpperLeft);
-            detailTitle.rectTransform.anchoredPosition = new Vector2(0f, 120f);
-            detailTitle.rectTransform.sizeDelta = new Vector2(482f, 46f);
+            detailTitle = CreateText("Detail Title", detailPanel, string.Empty, 32, FontStyle.Bold, new Color(0.94f, 0.98f, 1f, 1f), TextAnchor.UpperLeft);
+            detailTitle.rectTransform.anchoredPosition = new Vector2(0f, 108f);
+            detailTitle.rectTransform.sizeDelta = new Vector2(478f, 44f);
 
-            detailMeta = CreateText("Detail Meta", detailPanel, string.Empty, 20, FontStyle.Normal, new Color(0.76f, 0.86f, 0.9f, 0.98f), TextAnchor.UpperLeft);
-            detailMeta.rectTransform.anchoredPosition = new Vector2(0f, 76f);
-            detailMeta.rectTransform.sizeDelta = new Vector2(482f, 34f);
+            detailMeta = CreateText("Detail Meta", detailPanel, string.Empty, 18, FontStyle.Normal, new Color(0.76f, 0.86f, 0.9f, 0.96f), TextAnchor.UpperLeft);
+            detailMeta.rectTransform.anchoredPosition = new Vector2(0f, 72f);
+            detailMeta.rectTransform.sizeDelta = new Vector2(478f, 30f);
 
-            detailBody = CreateText("Detail Body", detailPanel, string.Empty, 22, FontStyle.Normal, new Color(0.84f, 0.9f, 0.92f, 0.98f), TextAnchor.UpperLeft);
-            detailBody.rectTransform.anchoredPosition = new Vector2(0f, 13f);
-            detailBody.rectTransform.sizeDelta = new Vector2(482f, 76f);
+            detailBody = CreateText("Detail Body", detailPanel, string.Empty, 20, FontStyle.Normal, new Color(0.84f, 0.9f, 0.92f, 0.98f), TextAnchor.UpperLeft);
+            detailBody.rectTransform.anchoredPosition = new Vector2(0f, 14f);
+            detailBody.rectTransform.sizeDelta = new Vector2(478f, 86f);
 
-            detailPositions = CreateText("Detail Positions", detailPanel, string.Empty, 19, FontStyle.Normal, new Color(0.82f, 0.72f, 0.46f, 0.98f), TextAnchor.UpperLeft);
-            detailPositions.rectTransform.anchoredPosition = new Vector2(0f, -62f);
-            detailPositions.rectTransform.sizeDelta = new Vector2(482f, 36f);
+            CreatePanelLine(detailPanel, "Detail Divider", new Vector2(0f, -46f), 382f, new Color(0.84f, 0.66f, 0.34f, 0.36f));
 
-            startSpreadButton = CreateGlassButton(detailPanel, "开始抽牌", new Vector2(0f, -122f), new Vector2(190f, 48f), () => ThreeCardReadingRequested?.Invoke());
+            detailPositions = CreateText("Detail Positions", detailPanel, string.Empty, 18, FontStyle.Normal, new Color(0.86f, 0.74f, 0.45f, 0.98f), TextAnchor.UpperLeft);
+            detailPositions.rectTransform.anchoredPosition = new Vector2(0f, -70f);
+            detailPositions.rectTransform.sizeDelta = new Vector2(478f, 34f);
+
+            startSpreadButton = CreateGlassButton(detailPanel, "开始抽牌", new Vector2(0f, -120f), new Vector2(188f, 46f), () => ThreeCardReadingRequested?.Invoke());
             startSpreadLabel = startSpreadButton.GetComponentInChildren<Text>();
         }
 
@@ -320,26 +318,43 @@ namespace Tarot.UI
             var panel = CreateColumn(parent, name, position, size);
 
             var image = panel.gameObject.AddComponent<Image>();
-            image.color = new Color(0.035f, 0.055f, 0.072f, 0.5f);
+            image.color = new Color(0.026f, 0.045f, 0.058f, 0.38f);
             image.raycastTarget = false;
 
             panel.gameObject.AddComponent<RectMask2D>();
 
             var outline = panel.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.78f, 0.92f, 1f, 0.58f);
+            outline.effectColor = new Color(0.78f, 0.92f, 1f, 0.46f);
             outline.effectDistance = new Vector2(1.2f, -1.2f);
 
             var shadow = panel.gameObject.AddComponent<Shadow>();
             shadow.effectColor = new Color(0f, 0.015f, 0.025f, 0.48f);
             shadow.effectDistance = new Vector2(0f, -9f);
 
-            AddPanelLayer(panel, "Bottom Shade", new Color(0.01f, 0.025f, 0.04f, 0.23f), new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 28f), new Vector2(-36f, 72f), 0f);
-            AddPanelLayer(panel, "Glass Grain", new Color(0.72f, 0.9f, 1f, 0.08f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 0f, CreateGlassNoiseSprite(), Image.Type.Tiled);
-            AddPanelLayer(panel, "Top Sheen", new Color(0.88f, 0.97f, 1f, 0.21f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -16f), new Vector2(-42f, 26f), 0f);
-            AddPanelLayer(panel, "Mystic Diagonal Glint", new Color(0.9f, 0.98f, 1f, 0.13f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(34f, 52f), new Vector2(size.x + 74f, 16f), -12f);
-            AddPanelLayer(panel, "Mystic Astro Line", new Color(0.84f, 0.66f, 0.34f, 0.2f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-118f, -84f), new Vector2(size.x * 0.62f, 2f), 0f);
-            AddPanelLayer(panel, "Left Edge Glint", new Color(0.92f, 0.98f, 1f, 0.42f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1.5f, 0f), new Vector2(3f, -24f), 0f);
+            AddPanelLayer(panel, "Bottom Shade", new Color(0.01f, 0.025f, 0.04f, 0.16f), new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 26f), new Vector2(-44f, 66f), 0f);
+            AddPanelLayer(panel, "Glass Grain", new Color(0.72f, 0.9f, 1f, 0.055f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 0f, CreateGlassNoiseSprite(), Image.Type.Tiled);
+            AddPanelLayer(panel, "Top Sheen", new Color(0.88f, 0.97f, 1f, 0.13f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -15f), new Vector2(-54f, 22f), 0f);
+            AddPanelLayer(panel, "Mystic Diagonal Glint", new Color(0.9f, 0.98f, 1f, 0.075f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(44f, 62f), new Vector2(size.x + 42f, 13f), -12f);
+            AddPanelLayer(panel, "Mystic Astro Line", new Color(0.84f, 0.66f, 0.34f, 0.14f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-122f, -86f), new Vector2(size.x * 0.56f, 2f), 0f);
+            AddPanelLayer(panel, "Left Edge Glint", new Color(0.92f, 0.98f, 1f, 0.34f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1.5f, 0f), new Vector2(2.5f, -28f), 0f);
             return panel;
+        }
+
+        private static Image CreatePanelLine(Transform parent, string name, Vector2 position, float width, Color color)
+        {
+            var lineObject = new GameObject(name);
+            lineObject.transform.SetParent(parent, false);
+
+            var image = lineObject.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+
+            image.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            image.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            image.rectTransform.anchoredPosition = position;
+            image.rectTransform.sizeDelta = new Vector2(width, 1.4f);
+            return image;
         }
 
         private static void AddPanelLayer(
