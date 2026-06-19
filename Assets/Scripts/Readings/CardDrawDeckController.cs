@@ -200,9 +200,16 @@ namespace Tarot.Readings
                 var normalizedAngle = Mathf.DeltaAngle(90f, angle);
                 var isVisible = Mathf.Abs(normalizedAngle) <= halfVisibleArc;
                 var view = cardViews[index];
+
+                if (view.IsSelected)
+                {
+                    view.Transform.gameObject.SetActive(true);
+                    continue;
+                }
+
                 view.Transform.gameObject.SetActive(isVisible);
 
-                if (!isVisible || view.IsSelected)
+                if (!isVisible)
                 {
                     continue;
                 }

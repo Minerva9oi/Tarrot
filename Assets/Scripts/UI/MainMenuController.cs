@@ -168,7 +168,7 @@ namespace Tarot.UI
         {
             var targetMainX = selectedMainIndex < 0 ? 0f : -590f;
             var targetSpreadX = isSpreadOpen ? -350f : -128f;
-            var targetDetailX = isSpreadOpen ? 120f : 610f;
+            var targetDetailX = isSpreadOpen ? 10f : 610f;
             var targetPlaceholderX = selectedMainIndex >= 0 && !isSpreadOpen ? -10f : 360f;
             var t = 1f - Mathf.Exp(-ColumnAnimationSpeed * Time.unscaledDeltaTime);
 
@@ -177,7 +177,7 @@ namespace Tarot.UI
             detailPanel.anchoredPosition = Vector2.Lerp(detailPanel.anchoredPosition, new Vector2(targetDetailX, 24f), t);
             placeholderPanel.anchoredPosition = Vector2.Lerp(placeholderPanel.anchoredPosition, new Vector2(targetPlaceholderX, 24f), t);
             firstSeparator.anchoredPosition = Vector2.Lerp(firstSeparator.anchoredPosition, new Vector2(-565f, -46f), t);
-            secondSeparator.anchoredPosition = Vector2.Lerp(secondSeparator.anchoredPosition, new Vector2(-166f, -46f), t);
+            secondSeparator.anchoredPosition = Vector2.Lerp(secondSeparator.anchoredPosition, new Vector2(-276f, -46f), t);
         }
 
         private Canvas CreateCanvas()
@@ -268,7 +268,7 @@ namespace Tarot.UI
 
         private void CreateDetailPanel(Transform parent)
         {
-            detailPanel = CreateColumn(parent, "Spread Detail Text", new Vector2(120f, 24f), new Vector2(560f, 318f));
+            detailPanel = CreateColumn(parent, "Spread Detail Text", new Vector2(10f, 24f), new Vector2(560f, 318f));
             detailGroup = detailPanel.gameObject.AddComponent<CanvasGroup>();
 
             detailTitle = CreateText("Detail Title", detailPanel, string.Empty, 34, FontStyle.Bold, new Color(0.94f, 0.94f, 0.88f, 1f), TextAnchor.UpperLeft);
@@ -314,7 +314,7 @@ namespace Tarot.UI
             separatorGroup = groupObject.AddComponent<CanvasGroup>();
 
             firstSeparator = CreateVerticalLine(groupObject.transform, "Main Separator", new Vector2(-565f, -46f), 440f);
-            secondSeparator = CreateVerticalLine(groupObject.transform, "Detail Separator", new Vector2(-166f, -46f), 440f);
+            secondSeparator = CreateVerticalLine(groupObject.transform, "Detail Separator", new Vector2(-276f, -46f), 440f);
         }
 
         private RectTransform CreateColumn(Transform parent, string name, Vector2 position, Vector2 size)

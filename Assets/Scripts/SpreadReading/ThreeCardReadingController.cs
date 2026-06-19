@@ -14,14 +14,14 @@ namespace Tarot.SpreadReading
     public sealed class ThreeCardReadingController : MonoBehaviour
     {
         private const int RequiredCards = 3;
-        private const float RevealedCardScale = 1.42f;
+        private const float RevealedCardScale = 1.68f;
         private const float MoveDuration = 0.58f;
         private static readonly string[] PositionNames = { "过去", "现在", "未来" };
         private static readonly Vector2[] SlotViewports =
         {
-            new(0.32f, 0.57f),
-            new(0.5f, 0.57f),
-            new(0.68f, 0.57f)
+            new(0.3f, 0.36f),
+            new(0.5f, 0.36f),
+            new(0.7f, 0.36f)
         };
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -36,16 +36,13 @@ namespace Tarot.SpreadReading
         private Canvas canvas;
         private GameObject questionPanel;
         private InputField questionInput;
-        private Text resultText;
-        private Text progressText;
-        private Text[] slotLabels;
+        private Text[] cardResultTexts = Array.Empty<Text>();
         private Transform[] slotAnchors;
         private CardDrawDeckController deckController;
         private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
         private Sprite fallbackCardFaceSprite;
         private bool isResolving;
-        private string activeQuestion = string.Empty;
 
         public event Action BackRequested;
 
@@ -89,17 +86,8 @@ namespace Tarot.SpreadReading
             BuildDeckController();
 
             canvas = CreateCanvas();
-            CreateHeader(canvas.transform);
-            CreateSlotLabels(canvas.transform);
             CreateQuestionPanel(canvas.transform);
-            resultText = CreateText(canvas.transform, string.Empty, 20, FontStyle.Normal, new Color(0.82f, 0.8f, 0.72f, 1f), TextAnchor.UpperCenter);
-            resultText.supportRichText = true;
-            resultText.rectTransform.anchoredPosition = new Vector2(0f, -190f);
-            resultText.rectTransform.sizeDelta = new Vector2(1180f, 180f);
-
-            progressText = CreateText(canvas.transform, "选择第 1 张牌", 20, FontStyle.Normal, new Color(0.62f, 0.66f, 0.68f, 1f), TextAnchor.MiddleCenter);
-            progressText.rectTransform.anchoredPosition = new Vector2(0f, -388f);
-            progressText.rectTransform.sizeDelta = new Vector2(640f, 42f);
+            CreateCardResultTexts(canvas.transform);
 
             CreateButton(canvas.transform, "返回", new Vector2(-790f, -456f), new Vector2(180f, 52f), () => BackRequested?.Invoke());
             CreateButton(canvas.transform, "再抽一次", new Vector2(790f, -456f), new Vector2(180f, 52f), ResetReading);
@@ -113,9 +101,9 @@ namespace Tarot.SpreadReading
             deckController.CardSelected += HandleCardSelected;
             deckController.Initialize(
                 new CardDrawLayoutProfile(
-                    1.32f,
+                    1.52f,
                     6.1f,
-                    -5.62f,
+                    -5.46f,
                     34f,
                     RevealedCardScale,
                     new Vector2(0.5f, 0.4f),
@@ -145,28 +133,6 @@ namespace Tarot.SpreadReading
             return createdCanvas;
         }
 
-        private void CreateHeader(Transform parent)
-        {
-            var title = CreateText(parent, "三张牌", 48, FontStyle.Normal, new Color(0.9f, 0.88f, 0.8f, 1f), TextAnchor.MiddleCenter);
-            title.rectTransform.anchoredPosition = new Vector2(0f, 260f);
-            title.rectTransform.sizeDelta = new Vector2(680f, 72f);
-
-            var subtitle = CreateText(parent, "过去 · 现在 · 未来", 22, FontStyle.Normal, new Color(0.58f, 0.6f, 0.66f, 1f), TextAnchor.MiddleCenter);
-            subtitle.rectTransform.anchoredPosition = new Vector2(0f, 210f);
-            subtitle.rectTransform.sizeDelta = new Vector2(760f, 42f);
-        }
-
-        private void CreateSlotLabels(Transform parent)
-        {
-            slotLabels = new Text[RequiredCards];
-            for (var index = 0; index < RequiredCards; index++)
-            {
-                var label = CreateText(parent, PositionNames[index], 22, FontStyle.Bold, new Color(0.84f, 0.78f, 0.62f, 1f), TextAnchor.MiddleCenter);
-                label.rectTransform.sizeDelta = new Vector2(180f, 42f);
-                slotLabels[index] = label;
-            }
-        }
-
         private void CreateQuestionPanel(Transform parent)
         {
             questionPanel = new GameObject("Question Panel");
@@ -191,6 +157,21 @@ namespace Tarot.SpreadReading
             questionInput.GetComponent<RectTransform>().sizeDelta = new Vector2(590f, 48f);
 
             CreateButton(questionPanel.transform, "开始抽牌", new Vector2(0f, -68f), new Vector2(190f, 48f), StartReading);
+        }
+
+        private void CreateCardResultTexts(Transform parent)
+        {
+            cardResultTexts = new Text[RequiredCards];
+
+            for (var index = 0; index < RequiredCards; index++)
+            {
+                var text = CreateText(parent, string.Empty, 20, FontStyle.Normal, new Color(0.88f, 0.86f, 0.8f, 1f), TextAnchor.UpperCenter);
+                text.supportRichText = true;
+                text.lineSpacing = 1.04f;
+                text.rectTransform.sizeDelta = new Vector2(330f, 104f);
+                text.gameObject.SetActive(false);
+                cardResultTexts[index] = text;
+            }
         }
 
         private InputField CreateInputField(Transform parent)
@@ -277,11 +258,9 @@ namespace Tarot.SpreadReading
 
         private void StartReading()
         {
-            activeQuestion = questionInput != null ? questionInput.text.Trim() : string.Empty;
             questionPanel.SetActive(false);
-            resultText.text = string.Empty;
+            ClearCardResultTexts();
             SetDrawMode(true);
-            progressText.text = "选择第 1 张牌";
         }
 
         private void HandleCardSelected(CardDrawCardView selected)
@@ -323,17 +302,15 @@ namespace Tarot.SpreadReading
             yield return FlipSelectedCard(selected, orientation);
 
             drawnCards.Add(new ThreeCardDraw(selected.Card, orientation, PositionNames[slotIndex]));
+            ShowCardResult(slotIndex, drawnCards[slotIndex]);
             isResolving = false;
 
             if (drawnCards.Count >= RequiredCards)
             {
                 deckController.SetInputEnabled(false);
-                progressText.text = "三张牌已经完成";
-                ShowResult();
                 yield break;
             }
 
-            progressText.text = $"选择第 {drawnCards.Count + 1} 张牌";
             deckController.SetInputEnabled(true);
         }
 
@@ -373,22 +350,23 @@ namespace Tarot.SpreadReading
             selected.Transform.localScale = Vector3.one * RevealedCardScale;
         }
 
-        private void ShowResult()
+        private void ShowCardResult(int slotIndex, ThreeCardDraw draw)
         {
-            var questionLine = string.IsNullOrWhiteSpace(activeQuestion)
-                ? "问题：未填写，让牌阵描述当下趋势。"
-                : $"问题：{activeQuestion}";
-            resultText.text =
-                $"<size=18>{questionLine}</size>\n" +
-                $"{FormatDraw(drawnCards[0])}\n" +
-                $"{FormatDraw(drawnCards[1])}\n" +
-                $"{FormatDraw(drawnCards[2])}";
+            if (slotIndex < 0 || slotIndex >= cardResultTexts.Length)
+            {
+                return;
+            }
+
+            cardResultTexts[slotIndex].gameObject.SetActive(true);
+            cardResultTexts[slotIndex].text = FormatDraw(draw);
         }
 
         private static string FormatDraw(ThreeCardDraw draw)
         {
             var orientation = draw.Orientation == TarotOrientation.Upright ? "正位" : "逆位";
-            return $"<b>{draw.PositionName}</b>：{draw.Card.ChineseName} · {orientation}  {CreatePositionReading(draw)}";
+            return
+                $"<b>{draw.Card.ChineseName}</b>  <size=15>{orientation}</size>\n" +
+                $"<size=17>{CreatePositionReading(draw)}</size>";
         }
 
         private static string CreatePositionReading(ThreeCardDraw draw)
@@ -396,9 +374,9 @@ namespace Tarot.SpreadReading
             var tone = draw.Orientation == TarotOrientation.Upright ? "正在顺势展开" : "需要放慢确认";
             return draw.PositionName switch
             {
-                "过去" => $"过去的影响来自{GetCardTheme(draw.Card)}，它{tone}。",
-                "现在" => $"现在的核心是{GetCardTheme(draw.Card)}，先看清它如何牵动你。",
-                "未来" => $"接下来会走向{GetCardTheme(draw.Card)}，把选择权留在自己手里。",
+                "过去" => $"{GetCardTheme(draw.Card)}曾经留下影响，它{tone}。",
+                "现在" => $"{GetCardTheme(draw.Card)}是当下核心，先看清它如何牵动你。",
+                "未来" => $"{GetCardTheme(draw.Card)}会继续展开，把选择权留在自己手里。",
                 _ => $"{GetCardTheme(draw.Card)}正在成为这张牌的重点。"
             };
         }
@@ -450,12 +428,24 @@ namespace Tarot.SpreadReading
             StopAllCoroutines();
             drawnCards.Clear();
             isResolving = false;
-            activeQuestion = string.Empty;
-            resultText.text = string.Empty;
-            progressText.text = "选择第 1 张牌";
+            ClearCardResultTexts();
             questionInput.text = string.Empty;
             deckController.ResetDeck();
             SetDrawMode(false);
+        }
+
+        private void ClearCardResultTexts()
+        {
+            foreach (var text in cardResultTexts)
+            {
+                if (text == null)
+                {
+                    continue;
+                }
+
+                text.text = string.Empty;
+                text.gameObject.SetActive(false);
+            }
         }
 
         private void SetDrawMode(bool isActive)
@@ -466,19 +456,14 @@ namespace Tarot.SpreadReading
                 deckController.SetInputEnabled(isActive);
             }
 
-            if (progressText != null)
-            {
-                progressText.gameObject.SetActive(isActive);
-            }
-
             if (questionPanel != null)
             {
                 questionPanel.SetActive(!isActive);
             }
 
-            foreach (var label in slotLabels)
+            if (!isActive)
             {
-                label.gameObject.SetActive(isActive);
+                ClearCardResultTexts();
             }
         }
 
@@ -493,10 +478,10 @@ namespace Tarot.SpreadReading
             for (var index = 0; index < RequiredCards; index++)
             {
                 slotAnchors[index].localPosition = ViewportToLocalWorldPoint(mainCamera, SlotViewports[index]);
-                if (slotLabels != null && slotLabels[index] != null)
+                if (cardResultTexts != null && index < cardResultTexts.Length && cardResultTexts[index] != null)
                 {
-                    var labelPosition = new Vector2((SlotViewports[index].x - 0.5f) * 1920f, -18f);
-                    slotLabels[index].rectTransform.anchoredPosition = labelPosition;
+                    var textPosition = new Vector2((SlotViewports[index].x - 0.5f) * 1920f, -376f);
+                    cardResultTexts[index].rectTransform.anchoredPosition = textPosition;
                 }
             }
         }

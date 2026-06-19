@@ -22,9 +22,7 @@ namespace Tarot.DailyReading
         private const int MeshDustParticleCount = 10000;
         private const int MeshImpactParticleCount = 2600;
         private const int MeshParticleQuadVertexCount = 4;
-        private const int MeshParticleBuildChunkSize = 2800;
         private const float ResultCardScale = 2.16f;
-        private const float SelectedPullScaleMultiplier = 1.055f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -283,7 +281,6 @@ namespace Tarot.DailyReading
             var selectedStart = transform.InverseTransformPoint(selected.Transform.position);
             var selectedMoveStart = new Vector3(selectedStart.x, targetPosition.y, selectedStart.z);
             var selectedStartScale = selected.Transform.localScale.x;
-            var selectedPullScale = ResultCardScale * SelectedPullScaleMultiplier;
 
             PrepareSelectedResultCard(selected, selectedMoveStart);
 
@@ -303,7 +300,7 @@ namespace Tarot.DailyReading
                 startColors[view] = view.Renderer.color;
                 startScales[view] = view.Transform.localScale;
                 cardDissolveDelays[view] = GetCardDissolveDelay();
-                yield return SpawnCardBackMeshParticles(view, particleBatches, cardDissolveDelays[view]);
+                SpawnCardBackMeshParticles(view, particleBatches, cardDissolveDelays[view]);
             }
 
             while (elapsed < particleSurfaceBuildDuration)
@@ -323,12 +320,11 @@ namespace Tarot.DailyReading
             while (elapsed < dissolveDuration)
             {
                 elapsed += Time.deltaTime;
-                var settleProgress = Smooth01(Mathf.InverseLerp(0f, 0.44f, elapsed));
-                var pullProgress = Mathf.Clamp01(elapsed / 0.44f);
-                var pullPulse = Mathf.Sin(pullProgress * Mathf.PI) * (selectedPullScale - ResultCardScale);
+                var selectedRevealElapsed = Mathf.Max(0f, elapsed - particleSurfaceBuildDuration);
+                var settleProgress = Smooth01(Mathf.InverseLerp(0f, 0.34f, selectedRevealElapsed));
                 selected.Transform.localPosition = selectedMoveStart;
                 selected.Transform.localRotation = Quaternion.identity;
-                selected.Transform.localScale = Vector3.one * (Mathf.Lerp(selectedStartScale, ResultCardScale, settleProgress) + pullPulse);
+                selected.Transform.localScale = Vector3.one * Mathf.Lerp(selectedStartScale, ResultCardScale, settleProgress);
 
                 foreach (var view in dissolvingCards)
                 {
@@ -382,7 +378,7 @@ namespace Tarot.DailyReading
 
         private IEnumerator FlipSelectedCardAtResult(CardDrawCardView selected, TarotOrientation orientation)
         {
-            const float flipDuration = 0.62f;
+            const float flipDuration = 0.86f;
             var elapsed = 0f;
             var selectedFrontApplied = false;
 
@@ -477,11 +473,11 @@ namespace Tarot.DailyReading
             return UnityEngine.Random.Range(0f, 0.08f);
         }
 
-        private IEnumerator SpawnCardBackMeshParticles(CardDrawCardView view, List<CardBackParticleBatch> batches, float baseDelay)
+        private void SpawnCardBackMeshParticles(CardDrawCardView view, List<CardBackParticleBatch> batches, float baseDelay)
         {
             if (effectRoot == null || starParticleSprite == null || cardDustMeshMaterial == null)
             {
-                yield break;
+                return;
             }
 
             var start = transform.InverseTransformPoint(view.Transform.position);
@@ -500,11 +496,6 @@ namespace Tarot.DailyReading
                 particles[index] = CreateCardBackMeshParticle(start, cardScale, baseDelay, templates[index]);
                 WriteParticleQuadStaticData(index, uvs, triangles);
                 WriteParticleQuad(vertices, colors, index, particles[index].StartPosition, particles[index].StartScale, Color.clear);
-
-                if (index > 0 && index % MeshParticleBuildChunkSize == 0)
-                {
-                    yield return null;
-                }
             }
 
             var batchObject = new GameObject("Daily Card Back Mesh Dust");
