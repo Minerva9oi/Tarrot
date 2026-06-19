@@ -271,6 +271,7 @@ namespace Tarot.DailyReading
         private IEnumerator RevealCardWithWindDissolve(CardDrawCardView selected, Vector3 targetPosition, TarotOrientation orientation)
         {
             const float dissolveDuration = 3.92f;
+            const float particleSurfaceBuildDuration = 0.24f;
             var elapsed = 0f;
             var dissolvingCards = new List<CardDrawCardView>();
             var startColors = new Dictionary<CardDrawCardView, Color>();
@@ -301,10 +302,21 @@ namespace Tarot.DailyReading
                 startScales[view] = view.Transform.localScale;
                 cardDissolveDelays[view] = GetCardDissolveDelay();
                 SpawnCardBackMeshParticles(view, particleBatches, cardDissolveDelays[view]);
+                yield return null;
+            }
+
+            while (elapsed < particleSurfaceBuildDuration)
+            {
+                elapsed += Time.deltaTime;
+                UpdateCardBackParticleBatches(particleBatches, elapsed);
+                yield return null;
+            }
+
+            foreach (var view in dissolvingCards)
+            {
                 var hiddenColor = view.Renderer.color;
                 hiddenColor.a = 0f;
                 view.Renderer.color = hiddenColor;
-                yield return null;
             }
 
             while (elapsed < dissolveDuration)
