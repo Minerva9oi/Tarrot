@@ -56,7 +56,7 @@ namespace Tarot.DailyReading
                 18);
 
             cardDeckArt = CardDeckArtData.LoadDefault();
-            cardBackSprite = CreateCardSprite(cardBackColor, cardLineColor, true);
+            cardBackSprite = CardBackGalleryCatalog.GetSelectedSprite() ?? CreateCardSprite(cardBackColor, cardLineColor, true);
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
             starParticleSprite = CreateStarParticleSprite();
             cardDustMeshMaterial = CreateCardDustMeshMaterial(starParticleSprite);
