@@ -37,6 +37,7 @@ namespace Tarot.SpreadReading
 
         private readonly List<SpreadDraw> drawnCards = new();
         private readonly List<StagedDraw> stagedDraws = new();
+        private readonly Dictionary<Sprite, Texture2D> readableSpriteCache = new();
         private SpreadDefinition spreadDefinition = SpreadDefinitionCatalog.GetDefault();
         private Font defaultFont;
         private Canvas canvas;
@@ -139,6 +140,7 @@ namespace Tarot.SpreadReading
         private void RebuildSceneForDefinition()
         {
             StopAllCoroutines();
+            ClearReadableSpriteCache();
             drawnCards.Clear();
             stagedDraws.Clear();
             isResolving = false;
@@ -901,6 +903,11 @@ namespace Tarot.SpreadReading
             SetQuestionMode();
         }
 
+        private void OnDestroy()
+        {
+            ClearReadableSpriteCache();
+        }
+
         private int GetDrawCount()
         {
             return spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal
@@ -1476,14 +1483,19 @@ namespace Tarot.SpreadReading
                 new Vector2(UnityEngine.Random.Range(0.04f, 0.96f), UnityEngine.Random.Range(0.08f, 0.94f)));
         }
 
-        private static Color SampleSpriteColor(Sprite sprite, Vector2 localOffset, Bounds bounds)
+        private Color SampleSpriteColor(Sprite sprite, Vector2 localOffset, Bounds bounds)
         {
             if (sprite == null || sprite.texture == null)
             {
                 return Color.white;
             }
 
-            var texture = sprite.texture;
+            var texture = GetReadableSpriteTexture(sprite);
+            if (texture == null)
+            {
+                return Color.Lerp(new Color(0.86f, 0.82f, 0.7f, 1f), Color.white, UnityEngine.Random.Range(0.08f, 0.34f));
+            }
+
             var rect = sprite.textureRect;
             var u = Mathf.InverseLerp(bounds.min.x, bounds.max.x, localOffset.x);
             var v = Mathf.InverseLerp(bounds.min.y, bounds.max.y, localOffset.y);
@@ -1492,6 +1504,75 @@ namespace Tarot.SpreadReading
             var color = texture.GetPixel(x, y);
             color.a = 1f;
             return color;
+        }
+
+        private Texture2D GetReadableSpriteTexture(Sprite sprite)
+        {
+            var texture = sprite.texture;
+            if (texture == null)
+            {
+                return null;
+            }
+
+            if (texture.isReadable)
+            {
+                return texture;
+            }
+
+            if (readableSpriteCache.TryGetValue(sprite, out var readableTexture) && readableTexture != null)
+            {
+                return readableTexture;
+            }
+
+            readableTexture = CreateReadableTextureCopy(texture);
+            if (readableTexture != null)
+            {
+                readableSpriteCache[sprite] = readableTexture;
+            }
+
+            return readableTexture;
+        }
+
+        private static Texture2D CreateReadableTextureCopy(Texture source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            var previous = RenderTexture.active;
+            var renderTexture = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+            try
+            {
+                Graphics.Blit(source, renderTexture);
+                RenderTexture.active = renderTexture;
+                var readable = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false)
+                {
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp
+                };
+                readable.ReadPixels(new Rect(0f, 0f, source.width, source.height), 0, 0);
+                readable.Apply(false, false);
+                return readable;
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(renderTexture);
+            }
+        }
+
+        private void ClearReadableSpriteCache()
+        {
+            foreach (var texture in readableSpriteCache.Values)
+            {
+                if (texture != null)
+                {
+                    Destroy(texture);
+                }
+            }
+
+            readableSpriteCache.Clear();
         }
 
         private static Sprite CreateParticleSprite()
