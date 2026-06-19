@@ -22,6 +22,7 @@ namespace Tarot.DailyReading
         private const int MeshDustParticleCount = 10000;
         private const int MeshImpactParticleCount = 2600;
         private const int MeshParticleQuadVertexCount = 4;
+        private const int MeshParticleBuildChunkSize = 2800;
         private const float ResultCardScale = 2.16f;
         private const float SelectedPullScaleMultiplier = 1.055f;
         private static readonly Vector2 SelectedCardViewportPosition = new(0.5f, 0.56f);
@@ -61,6 +62,7 @@ namespace Tarot.DailyReading
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
             starParticleSprite = CreateStarParticleSprite();
             cardDustMeshMaterial = CreateCardDustMeshMaterial(starParticleSprite);
+            GetCardBackParticleTemplates(cardBackSprite.bounds);
 
             BuildScene();
             SetResultVisible(false);
@@ -301,8 +303,7 @@ namespace Tarot.DailyReading
                 startColors[view] = view.Renderer.color;
                 startScales[view] = view.Transform.localScale;
                 cardDissolveDelays[view] = GetCardDissolveDelay();
-                SpawnCardBackMeshParticles(view, particleBatches, cardDissolveDelays[view]);
-                yield return null;
+                yield return SpawnCardBackMeshParticles(view, particleBatches, cardDissolveDelays[view]);
             }
 
             while (elapsed < particleSurfaceBuildDuration)
@@ -476,11 +477,11 @@ namespace Tarot.DailyReading
             return UnityEngine.Random.Range(0f, 0.08f);
         }
 
-        private void SpawnCardBackMeshParticles(CardDrawCardView view, List<CardBackParticleBatch> batches, float baseDelay)
+        private IEnumerator SpawnCardBackMeshParticles(CardDrawCardView view, List<CardBackParticleBatch> batches, float baseDelay)
         {
             if (effectRoot == null || starParticleSprite == null || cardDustMeshMaterial == null)
             {
-                return;
+                yield break;
             }
 
             var start = transform.InverseTransformPoint(view.Transform.position);
@@ -499,6 +500,11 @@ namespace Tarot.DailyReading
                 particles[index] = CreateCardBackMeshParticle(start, cardScale, baseDelay, templates[index]);
                 WriteParticleQuadStaticData(index, uvs, triangles);
                 WriteParticleQuad(vertices, colors, index, particles[index].StartPosition, particles[index].StartScale, Color.clear);
+
+                if (index > 0 && index % MeshParticleBuildChunkSize == 0)
+                {
+                    yield return null;
+                }
             }
 
             var batchObject = new GameObject("Daily Card Back Mesh Dust");
