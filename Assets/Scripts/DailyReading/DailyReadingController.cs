@@ -531,9 +531,7 @@ namespace Tarot.DailyReading
         private CardBackParticleTemplate CreateCardBackParticleTemplate(Bounds cardBounds, bool isImpact)
         {
             var offset = RandomCardBackOffset(cardBounds, out var normalizedX, out var normalizedY);
-            var color = SampleCardBackDustColor(offset, cardBounds);
-            color = Color.Lerp(color, Color.white, isImpact ? 0.42f : 0.26f);
-            color.a = Mathf.Min(1f, color.a * (isImpact ? 1.48f : 1.26f));
+            var color = SampleCardBackExactColor(offset, cardBounds);
 
             var centerDistance = Vector2.Distance(new Vector2(normalizedX, normalizedY), new Vector2(0.5f, 0.5f));
             var patternHold = isImpact ? 0.46f : 0.54f;
@@ -626,6 +624,8 @@ namespace Tarot.DailyReading
                     var expansionPulse = 1f + Mathf.Sin(Mathf.Clamp01(releaseLinear / 0.34f) * Mathf.PI) * (particle.IsImpact ? 0.16f : 0.1f);
                     var scale = particle.StartScale * expansionPulse * Mathf.Lerp(1f, particle.IsImpact ? 0.48f : 0.36f, release);
                     var color = particle.BaseColor;
+                    var paleProgress = Smooth01(Mathf.InverseLerp(0.34f, 0.9f, release));
+                    color = Color.Lerp(color, Color.Lerp(color, Color.white, particle.IsImpact ? 0.52f : 0.38f), paleProgress);
                     var fadeOutStart = particle.IsImpact ? 0.68f : 0.74f;
                     color.a = particle.BaseColor.a * materialize * (1f - Smooth01(Mathf.InverseLerp(fadeOutStart, 1f, release)));
                     WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
@@ -931,6 +931,24 @@ namespace Tarot.DailyReading
             }
 
             sampled.a = Mathf.Lerp(0.86f, 1f, Mathf.Clamp01(luminance * 1.7f));
+            return sampled;
+        }
+
+        private Color SampleCardBackExactColor(Vector2 spriteLocalOffset, Bounds spriteBounds)
+        {
+            if (cardBackSprite == null || cardBackSprite.texture == null)
+            {
+                return new Color(0.66f, 0.82f, 1f, 1f);
+            }
+
+            var texture = cardBackSprite.texture;
+            var rect = cardBackSprite.textureRect;
+            var normalizedX = Mathf.InverseLerp(spriteBounds.min.x, spriteBounds.max.x, spriteLocalOffset.x);
+            var normalizedY = Mathf.InverseLerp(spriteBounds.min.y, spriteBounds.max.y, spriteLocalOffset.y);
+            var textureX = Mathf.Lerp(rect.xMin, rect.xMax, normalizedX) / texture.width;
+            var textureY = Mathf.Lerp(rect.yMin, rect.yMax, normalizedY) / texture.height;
+            var sampled = texture.GetPixelBilinear(textureX, textureY);
+            sampled.a = Mathf.Max(sampled.a, 0.96f);
             return sampled;
         }
 
