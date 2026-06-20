@@ -19,14 +19,14 @@ namespace Tarot.SpreadReading
         private const float StagedCollectMoveDuration = 0.36f;
         private const float StagedFocusHoldDuration = 0.36f;
         private const float StagedParticleFlowDuration = 2.22f;
-        private const float StagedBlackoutFadeDuration = 0.82f;
         private const float StagedSettleDuration = 0.74f;
         private const float InfoPinDelay = 3f;
         private const int ConvergeParticleCount = 360;
         private const int StagedFaceParticleCount = 4800;
-        private const int StagedStarParticleCount = 520;
         private const int DeckDissolveParticleCount = 150;
         private const float StagedFocusScaleMultiplier = 1.32f;
+        private const float WaitingCircleDuration = 0.62f;
+        private const float ImmediateFinalSettleDuration = 0.78f;
         private const bool EnableMagicCircleEffect = false;
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -38,6 +38,8 @@ namespace Tarot.SpreadReading
 
         private readonly List<SpreadDraw> drawnCards = new();
         private readonly List<StagedDraw> stagedDraws = new();
+        private readonly List<CardDrawCardView> immediateDrawViews = new();
+        private readonly List<Transform> waitingCircleRoots = new();
         private readonly Dictionary<Sprite, Texture2D> readableSpriteCache = new();
         private SpreadDefinition spreadDefinition = SpreadDefinitionCatalog.GetDefault();
         private Font defaultFont;
@@ -52,11 +54,13 @@ namespace Tarot.SpreadReading
         private Sprite fallbackCardFaceSprite;
         private Sprite particleSprite;
         private Sprite blackoutSprite;
+        private Sprite smallHexagramSprite;
         private Material particleMaterial;
         private SpriteRenderer blackoutRenderer;
         private Transform magicCircleRoot;
         private bool isResolving;
         private bool drawStarted;
+        private bool immediateFinalCentered;
         private string activeQuestion = string.Empty;
         private RectTransform controlsHotspot;
         private RectTransform controlsPanel;
@@ -86,6 +90,7 @@ namespace Tarot.SpreadReading
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
             particleSprite = CreateParticleSprite();
             blackoutSprite = CreateSolidSprite(Color.white);
+            smallHexagramSprite = CreateSmallHexagramSprite();
             particleMaterial = CreateParticleMaterial(particleSprite);
 
             EnsureEventSystem();
@@ -144,8 +149,11 @@ namespace Tarot.SpreadReading
             ClearReadableSpriteCache();
             drawnCards.Clear();
             stagedDraws.Clear();
+            immediateDrawViews.Clear();
+            ClearWaitingCircles();
             isResolving = false;
             drawStarted = false;
+            immediateFinalCentered = false;
             activeQuestion = string.Empty;
 
             for (var index = transform.childCount - 1; index >= 0; index--)
@@ -541,7 +549,7 @@ namespace Tarot.SpreadReading
             var startPosition = selected.Transform.localPosition;
             var targetPosition = slotAnchors[slotIndex].localPosition;
             var startScale = selected.Transform.localScale.x;
-            var targetScale = GetTargetCardScale();
+            var targetScale = startScale;
             var particleBatch = CreateConvergeParticleBatch(
                 startPosition,
                 targetPosition,
@@ -572,16 +580,28 @@ namespace Tarot.SpreadReading
 
             var slot = spreadDefinition.Slots[slotIndex];
             drawnCards.Add(new SpreadDraw(selected.Card, orientation, slot));
+            immediateDrawViews.Add(selected);
             ShowCardResult(slotIndex, drawnCards[slotIndex]);
             isResolving = false;
 
             if (drawnCards.Count >= spreadDefinition.CardCount)
             {
                 deckController.SetInputEnabled(false);
+                StartCoroutine(CompleteImmediateReveal());
                 yield break;
             }
 
             deckController.SetInputEnabled(true);
+        }
+
+        private IEnumerator CompleteImmediateReveal()
+        {
+            isResolving = true;
+            deckController.SetInputEnabled(false);
+            yield return DissolveUndrawnDeckCards();
+            deckController.enabled = false;
+            yield return MoveImmediateCardsToCenteredLayout();
+            isResolving = false;
         }
 
         private IEnumerator StageSelectedCard(CardDrawCardView selected, int slotIndex, TarotOrientation orientation)
@@ -637,7 +657,9 @@ namespace Tarot.SpreadReading
             deckController.SetInputEnabled(false);
             yield return DissolveUndrawnDeckCards();
             deckController.enabled = false;
+            backgroundManager?.Awaken();
             yield return MoveStagedCardsToFinalLayout();
+            StartCoroutine(RestoreBackgroundAfterDelay(1.1f));
             CreateMagicCircleEffect();
 
             drawnCards.Clear();
@@ -687,6 +709,49 @@ namespace Tarot.SpreadReading
                 view.Transform.localPosition = slotAnchors[index].localPosition;
                 view.Transform.localRotation = GetCardRotation(stagedDraws[index].Draw.Orientation);
                 view.Transform.localScale = Vector3.one * finalScale;
+            }
+        }
+
+        private IEnumerator MoveImmediateCardsToCenteredLayout()
+        {
+            immediateFinalCentered = true;
+            var count = immediateDrawViews.Count;
+            var startPositions = new Vector3[count];
+            var startScales = new float[count];
+            var finalPositions = new Vector3[count];
+            for (var index = 0; index < count; index++)
+            {
+                var view = immediateDrawViews[index];
+                startPositions[index] = view.Transform.localPosition;
+                startScales[index] = view.Transform.localScale.x;
+                finalPositions[index] = GetImmediateFinalLocalPosition(index);
+                view.Renderer.sortingOrder = 2700 + index;
+            }
+
+            var elapsed = 0f;
+            while (elapsed < ImmediateFinalSettleDuration)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Mathf.Clamp01(elapsed / ImmediateFinalSettleDuration);
+                var t = Smooth01(progress);
+                for (var index = 0; index < count; index++)
+                {
+                    var view = immediateDrawViews[index];
+                    view.Transform.localPosition = Vector3.Lerp(startPositions[index], finalPositions[index], t);
+                    view.Transform.localRotation = GetCardRotation(drawnCards[index].Orientation);
+                    view.Transform.localScale = Vector3.one * startScales[index];
+                }
+
+                yield return null;
+            }
+
+            for (var index = 0; index < count; index++)
+            {
+                var view = immediateDrawViews[index];
+                view.Transform.localPosition = finalPositions[index];
+                view.Transform.localRotation = GetCardRotation(drawnCards[index].Orientation);
+                view.Transform.localScale = Vector3.one * startScales[index];
+                SetResultTextViewportPosition(index, GetImmediateFinalViewportPosition(index), -190f);
             }
         }
 
@@ -769,12 +834,12 @@ namespace Tarot.SpreadReading
             var faceSprite = selected.Renderer.sprite != null ? selected.Renderer.sprite : fallbackCardFaceSprite;
             var flowBatch = CreateConvergeParticleBatch(
                 focusPosition,
-                waitingPosition,
+                focusPosition + new Vector3(0f, focusScale * 1.2f, 0f),
                 focusScale,
-                waitingScale,
+                focusScale,
                 faceSprite,
                 StagedFaceParticleCount,
-                StagedStarParticleCount,
+                0,
                 orientation,
                 true);
 
@@ -784,10 +849,8 @@ namespace Tarot.SpreadReading
             {
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / StagedParticleFlowDuration);
-                var blackoutIn = Smooth01(Mathf.InverseLerp(0.46f, 0.78f, progress));
                 var cardFade = 1f - Smooth01(Mathf.InverseLerp(0.12f, 0.42f, progress));
                 selected.Renderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * cardFade);
-                SetBlackoutAlpha(Mathf.Lerp(0f, 0.92f, blackoutIn));
                 UpdateConvergeParticleBatch(flowBatch, progress);
                 yield return null;
             }
@@ -796,19 +859,48 @@ namespace Tarot.SpreadReading
             selected.Transform.localPosition = waitingPosition;
             selected.Transform.localRotation = GetCardRotation(orientation);
             selected.Transform.localScale = Vector3.one * waitingScale;
-            selected.Renderer.color = baseColor;
-            backgroundManager?.Restore();
+            selected.Renderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+            yield return SummonWaitingCard(selected, waitingPosition, waitingScale, baseColor);
+        }
 
-            elapsed = 0f;
-            while (elapsed < StagedBlackoutFadeDuration)
+        private IEnumerator SummonWaitingCard(CardDrawCardView selected, Vector3 waitingPosition, float waitingScale, Color finalColor)
+        {
+            var circleRoot = new GameObject("Waiting Card Hexagram").transform;
+            circleRoot.SetParent(transform, false);
+            circleRoot.localPosition = waitingPosition;
+            waitingCircleRoots.Add(circleRoot);
+
+            var circleObject = new GameObject("Hexagram");
+            circleObject.transform.SetParent(circleRoot, false);
+            var circleRenderer = circleObject.AddComponent<SpriteRenderer>();
+            circleRenderer.sprite = smallHexagramSprite;
+            circleRenderer.color = new Color(0.9f, 0.72f, 0.34f, 0f);
+            circleRenderer.sortingOrder = 2440;
+            circleObject.transform.localScale = Vector3.one * (waitingScale * 3.1f);
+
+            var startPosition = waitingPosition + new Vector3(0f, -0.12f, 0f);
+            var elapsed = 0f;
+            while (elapsed < WaitingCircleDuration)
             {
                 elapsed += Time.deltaTime;
-                var progress = Mathf.Clamp01(elapsed / StagedBlackoutFadeDuration);
-                SetBlackoutAlpha(Mathf.Lerp(0.92f, 0f, Smooth01(progress)));
+                var progress = Mathf.Clamp01(elapsed / WaitingCircleDuration);
+                var appear = Smooth01(Mathf.InverseLerp(0.18f, 0.82f, progress));
+                var circlePulse = Mathf.Sin(progress * Mathf.PI);
+                var circleColor = circleRenderer.color;
+                circleColor.a = 0.08f + circlePulse * 0.18f;
+                circleRenderer.color = circleColor;
+                circleRoot.localRotation = Quaternion.Euler(0f, 0f, progress * 18f);
+
+                selected.Transform.localPosition = Vector3.Lerp(startPosition, waitingPosition, appear);
+                selected.Renderer.color = new Color(finalColor.r, finalColor.g, finalColor.b, finalColor.a * appear);
                 yield return null;
             }
 
-            SetBlackoutAlpha(0f);
+            selected.Transform.localPosition = waitingPosition;
+            selected.Transform.localScale = Vector3.one * waitingScale;
+            selected.Renderer.color = finalColor;
+            waitingCircleRoots.Remove(circleRoot);
+            Destroy(circleRoot.gameObject);
         }
 
         private void ApplyCardFace(CardDrawCardView selected, TarotOrientation orientation)
@@ -898,6 +990,10 @@ namespace Tarot.SpreadReading
             SetBlackoutAlpha(0f);
             drawnCards.Clear();
             stagedDraws.Clear();
+            immediateDrawViews.Clear();
+            ClearWaitingCircles();
+            immediateFinalCentered = false;
+            backgroundManager?.SetIdle();
             isResolving = false;
             activeQuestion = string.Empty;
             ClearCardResultTexts();
@@ -916,6 +1012,12 @@ namespace Tarot.SpreadReading
             return spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal
                 ? stagedDraws.Count
                 : drawnCards.Count;
+        }
+
+        private IEnumerator RestoreBackgroundAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            backgroundManager?.Restore();
         }
 
         private float GetTargetCardScale()
@@ -954,6 +1056,33 @@ namespace Tarot.SpreadReading
             }
 
             return ViewportToLocalWorldPoint(mainCamera, new Vector2(0.5f, 0.5f));
+        }
+
+        private Vector3 GetImmediateFinalLocalPosition(int slotIndex)
+        {
+            var mainCamera = Camera.main;
+            if (mainCamera == null || !mainCamera.orthographic)
+            {
+                return new Vector3((slotIndex - 1) * 2.25f, 0f, 0f);
+            }
+
+            return ViewportToLocalWorldPoint(mainCamera, GetImmediateFinalViewportPosition(slotIndex));
+        }
+
+        private static Vector2 GetImmediateFinalViewportPosition(int slotIndex)
+        {
+            return new Vector2(0.5f + (slotIndex - 1) * 0.16f, 0.5f);
+        }
+
+        private void SetResultTextViewportPosition(int slotIndex, Vector2 viewportPosition, float yOffset = -164f)
+        {
+            if (cardResultTexts == null || slotIndex < 0 || slotIndex >= cardResultTexts.Length || cardResultTexts[slotIndex] == null)
+            {
+                return;
+            }
+
+            var textPosition = new Vector2((viewportPosition.x - 0.5f) * 1920f, (viewportPosition.y - 0.5f) * 1080f + yOffset);
+            cardResultTexts[slotIndex].rectTransform.anchoredPosition = textPosition;
         }
 
         private Vector3 GetWaitingLocalPosition(int slotIndex)
@@ -1087,6 +1216,20 @@ namespace Tarot.SpreadReading
             magicCircleRoot = null;
         }
 
+        private void ClearWaitingCircles()
+        {
+            for (var index = waitingCircleRoots.Count - 1; index >= 0; index--)
+            {
+                var circleRoot = waitingCircleRoots[index];
+                if (circleRoot != null)
+                {
+                    Destroy(circleRoot.gameObject);
+                }
+            }
+
+            waitingCircleRoots.Clear();
+        }
+
         private void CreateMagicCircleEffect()
         {
             ClearMagicCircle();
@@ -1115,11 +1258,14 @@ namespace Tarot.SpreadReading
             {
                 var child = transform.GetChild(index);
                 if (child.name.IndexOf("Spread Converge Particles", StringComparison.Ordinal) >= 0 ||
-                    child.name.IndexOf("Spread Magic Circle", StringComparison.Ordinal) >= 0)
+                    child.name.IndexOf("Spread Magic Circle", StringComparison.Ordinal) >= 0 ||
+                    child.name.IndexOf("Waiting Card Hexagram", StringComparison.Ordinal) >= 0)
                 {
                     Destroy(child.gameObject);
                 }
             }
+
+            waitingCircleRoots.Clear();
         }
 
         private void ClearCardResultTexts()
@@ -1150,8 +1296,11 @@ namespace Tarot.SpreadReading
                 slotAnchors[index].localPosition = ViewportToLocalWorldPoint(mainCamera, slot.ViewportPosition);
                 if (cardResultTexts != null && index < cardResultTexts.Length && cardResultTexts[index] != null)
                 {
-                    var textPosition = new Vector2((slot.ViewportPosition.x - 0.5f) * 1920f, (slot.ViewportPosition.y - 0.5f) * 1080f - 164f);
-                    cardResultTexts[index].rectTransform.anchoredPosition = textPosition;
+                    var textViewport = immediateFinalCentered && spreadDefinition.RevealFlow == SpreadRevealFlow.ImmediateReveal
+                        ? GetImmediateFinalViewportPosition(index)
+                        : slot.ViewportPosition;
+                    var yOffset = immediateFinalCentered && spreadDefinition.RevealFlow == SpreadRevealFlow.ImmediateReveal ? -190f : -164f;
+                    SetResultTextViewportPosition(index, textViewport, yOffset);
                 }
             }
 
@@ -1763,6 +1912,67 @@ namespace Tarot.SpreadReading
 
             texture.Apply();
             return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+        }
+
+        private static Sprite CreateSmallHexagramSprite()
+        {
+            const int size = 192;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            var center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+            var radius = size * 0.32f;
+            var upA = PointOnCircle(center, radius, 90f);
+            var upB = PointOnCircle(center, radius, 210f);
+            var upC = PointOnCircle(center, radius, 330f);
+            var downA = PointOnCircle(center, radius, 270f);
+            var downB = PointOnCircle(center, radius, 30f);
+            var downC = PointOnCircle(center, radius, 150f);
+
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var point = new Vector2(x, y);
+                    var normalizedRadius = Vector2.Distance(point, center) / (size * 0.5f);
+                    var outerRing = Mathf.Clamp01(1f - Mathf.Abs(normalizedRadius - 0.7f) * 54f);
+                    var innerRing = Mathf.Clamp01(1f - Mathf.Abs(normalizedRadius - 0.36f) * 58f) * 0.42f;
+                    var hexagram = Mathf.Max(
+                        TriangleLineAlpha(point, upA, upB, upC),
+                        TriangleLineAlpha(point, downA, downB, downC));
+                    var starDots = Mathf.Clamp01(1f - Mathf.Abs(normalizedRadius - 0.55f) * 24f) *
+                        Mathf.Clamp01(1f - Mathf.Abs(Mathf.Sin(Mathf.Atan2(point.y - center.y, point.x - center.x) * 6f)) * 14f) * 0.36f;
+                    var alpha = Mathf.Clamp01(outerRing * 0.72f + innerRing + hexagram * 0.82f + starDots);
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+        }
+
+        private static Vector2 PointOnCircle(Vector2 center, float radius, float degrees)
+        {
+            var radians = degrees * Mathf.Deg2Rad;
+            return center + new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)) * radius;
+        }
+
+        private static float TriangleLineAlpha(Vector2 point, Vector2 a, Vector2 b, Vector2 c)
+        {
+            var distance = Mathf.Min(
+                DistanceToSegment(point, a, b),
+                Mathf.Min(DistanceToSegment(point, b, c), DistanceToSegment(point, c, a)));
+            return Mathf.Clamp01(1f - distance * 0.72f);
+        }
+
+        private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
+        {
+            var ab = b - a;
+            var t = Mathf.Clamp01(Vector2.Dot(point - a, ab) / Mathf.Max(0.0001f, Vector2.Dot(ab, ab)));
+            return Vector2.Distance(point, a + ab * t);
         }
 
         private static Material CreateParticleMaterial(Sprite sprite)
