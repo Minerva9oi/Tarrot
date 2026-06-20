@@ -99,7 +99,7 @@ namespace Tarot.Readings
                 view.Transform.localRotation = Quaternion.identity;
                 view.Transform.localScale = Vector3.one;
                 view.Renderer.sprite = cardBackSprite;
-                view.Renderer.color = cardDimColor;
+                view.Renderer.color = ForceOpaque(cardDimColor);
             }
 
             SetInputEnabled(true);
@@ -221,7 +221,7 @@ namespace Tarot.Readings
                     0f);
                 var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / halfVisibleArc);
                 var tint = Color.Lerp(cardDimColor, focusColor, 0.2f + centerProximity * 0.22f);
-                tint.a = Mathf.Lerp(0.72f, 0.96f, centerProximity);
+                tint.a = 1f;
 
                 view.Transform.localPosition = position;
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
@@ -229,6 +229,12 @@ namespace Tarot.Readings
                 view.Renderer.color = tint;
                 view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f);
             }
+        }
+
+        private static Color ForceOpaque(Color color)
+        {
+            color.a = 1f;
+            return color;
         }
 
         private void TrySelectClickedCard(Vector3 screenPosition)

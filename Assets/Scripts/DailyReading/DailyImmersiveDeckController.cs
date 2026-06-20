@@ -116,7 +116,7 @@ namespace Tarot.DailyReading
                 view.Transform.localScale = Vector3.one;
                 view.Renderer.enabled = true;
                 view.Renderer.sprite = cardBackSprite;
-                view.Renderer.color = cardDimColor;
+                view.Renderer.color = ForceOpaque(cardDimColor);
                 view.Renderer.sortingOrder = 1000;
                 SetTrapezoidVisible(view, false);
             }
@@ -253,14 +253,14 @@ namespace Tarot.DailyReading
                 var x = Mathf.Sin(ringAngle) * ringRadius;
                 var y = centerY - (1f - Mathf.Cos(ringAngle)) * ringRadius * 0.08f;
                 var tint = Color.Lerp(cardDimColor, focusColor, 0.16f + centerProximity * 0.3f);
-                tint.a = Mathf.Lerp(0.72f, 0.98f, centerProximity);
+                tint.a = 1f;
                 var isHovered = view == hoveredCard;
                 if (isHovered)
                 {
                     y += HoverLiftWorldUnits;
                     scale *= HoverScaleMultiplier;
                     tint = Color.Lerp(tint, focusColor, HoverFocusBoost);
-                    tint.a = Mathf.Min(1f, tint.a + 0.08f);
+                    tint.a = 1f;
                 }
 
                 view.Transform.localPosition = new Vector3(x, y, 0f);
@@ -270,6 +270,12 @@ namespace Tarot.DailyReading
                 view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 180f + (isHovered ? 32f : 0f));
                 UpdateTrapezoid(view, sideAmount, sideProximity);
             }
+        }
+
+        private static Color ForceOpaque(Color color)
+        {
+            color.a = 1f;
+            return color;
         }
 
         private void TrySelectClickedCard(Vector3 screenPosition)

@@ -33,7 +33,7 @@ namespace Tarot.SpreadReading
         [SerializeField] private Color cardBackColor = Color.white;
         [SerializeField] private Color cardFaceColor = new(0.86f, 0.84f, 0.78f, 1f);
         [SerializeField] private Color cardLineColor = new(0.78f, 0.68f, 0.48f, 1f);
-        [SerializeField] private Color cardDimColor = new(0.42f, 0.44f, 0.52f, 0.88f);
+        [SerializeField] private Color cardDimColor = new(0.42f, 0.44f, 0.52f, 1f);
         [SerializeField] private Color focusColor = new(1f, 0.92f, 0.68f, 1f);
 
         private readonly List<SpreadDraw> drawnCards = new();
@@ -953,7 +953,7 @@ namespace Tarot.SpreadReading
                 return new Vector3(0f, -0.4f, 0f);
             }
 
-            return ViewportToLocalWorldPoint(mainCamera, new Vector2(0.5f, 0.47f));
+            return ViewportToLocalWorldPoint(mainCamera, new Vector2(0.5f, 0.5f));
         }
 
         private Vector3 GetWaitingLocalPosition(int slotIndex)
@@ -1364,10 +1364,14 @@ namespace Tarot.SpreadReading
                     Mathf.Abs(normalizedX - 0.5f) * 2f,
                     Mathf.Abs(normalizedY - 0.5f) * 2f);
                 var edgeLift = Smooth01(Mathf.InverseLerp(0.42f, 1f, edgeDistance));
-                var lift = start + new Vector3(
-                    UnityEngine.Random.Range(-0.05f, 0.05f) * cardScale,
-                    UnityEngine.Random.Range(0.24f, 0.62f) * cardScale * Mathf.Lerp(0.38f, 1f, edgeLift),
-                    0f);
+                var horizontalScatter = stagedFlow
+                    ? (Mathf.Sign(localOffset.x == 0f ? UnityEngine.Random.Range(-1f, 1f) : localOffset.x) * UnityEngine.Random.Range(0.14f, 0.46f) +
+                        UnityEngine.Random.Range(-0.18f, 0.18f)) * cardScale * Mathf.Lerp(0.46f, 1f, edgeLift)
+                    : UnityEngine.Random.Range(-0.05f, 0.05f) * cardScale;
+                var verticalScatter = stagedFlow
+                    ? UnityEngine.Random.Range(0.34f, 0.92f) * cardScale * Mathf.Lerp(0.5f, 1f, edgeLift)
+                    : UnityEngine.Random.Range(0.24f, 0.62f) * cardScale * Mathf.Lerp(0.38f, 1f, edgeLift);
+                var lift = start + new Vector3(horizontalScatter, verticalScatter, 0f);
                 var control = start + path * UnityEngine.Random.Range(0.48f, 0.58f) + side * UnityEngine.Random.Range(-0.035f, 0.035f);
                 var target = targetPosition + new Vector3(
                     UnityEngine.Random.Range(-0.33f, 0.33f) * targetScale,
@@ -1451,8 +1455,8 @@ namespace Tarot.SpreadReading
                     var rise = Smooth01(Mathf.InverseLerp(0f, 0.32f, release));
                     stream = Smooth01(Mathf.InverseLerp(0.62f, 1f, release));
                     var lifted = Vector3.Lerp(particle.Start, particle.Lift, rise);
-                    var topDrift = side * Mathf.Sin(release * 8.5f + particle.FlowPhase) * 0.035f * (1f - stream);
-                    var upwardBreath = Vector3.up * Mathf.Sin(release * Mathf.PI) * 0.045f * (1f - stream);
+                    var topDrift = side * Mathf.Sin(release * 8.5f + particle.FlowPhase) * 0.12f * (1f - stream);
+                    var upwardBreath = Vector3.up * Mathf.Sin(release * Mathf.PI) * 0.08f * (1f - stream);
                     var direct = Vector3.Lerp(particle.Lift, particle.Target, stream);
                     var streamWave = side * Mathf.Sin(stream * 8.2f + particle.FlowPhase) * 0.048f * Mathf.Sin(stream * Mathf.PI);
                     position = stream <= 0.001f
