@@ -168,7 +168,7 @@ namespace Tarot.SpreadReading
             deckController.CardSelected += HandleCardSelected;
             deckController.Initialize(
                 new CardDrawLayoutProfile(
-                    spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 1.92f : 1.52f,
+                    1.92f,
                     spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 6.45f : 6.1f,
                     spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? -5.95f : -5.46f,
                     spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 38f : 34f,
@@ -1314,6 +1314,39 @@ namespace Tarot.SpreadReading
             return transform.InverseTransformPoint(worldPosition);
         }
 
+        private static Vector3 CreateStagedScatterOffset(Vector2 localOffset, float cardScale, float edgeLift)
+        {
+            var outward = localOffset;
+            if (outward.sqrMagnitude < 0.0001f)
+            {
+                outward = UnityEngine.Random.insideUnitCircle;
+                if (outward.sqrMagnitude < 0.0001f)
+                {
+                    outward = Vector2.up;
+                }
+            }
+
+            outward.Normalize();
+            var angle = UnityEngine.Random.Range(-128f, 128f) * Mathf.Deg2Rad;
+            var cos = Mathf.Cos(angle);
+            var sin = Mathf.Sin(angle);
+            var rotated = new Vector2(
+                outward.x * cos - outward.y * sin,
+                outward.x * sin + outward.y * cos);
+
+            if (UnityEngine.Random.value < 0.24f)
+            {
+                rotated = Vector2.Lerp(rotated, -outward, UnityEngine.Random.Range(0.34f, 0.74f)).normalized;
+            }
+
+            var tangent = new Vector2(-outward.y, outward.x) * UnityEngine.Random.Range(-0.58f, 0.58f);
+            var randomBurst = UnityEngine.Random.insideUnitCircle * UnityEngine.Random.Range(0.05f, 0.32f);
+            var expansion = (rotated * UnityEngine.Random.Range(0.18f, 0.72f) + tangent + randomBurst) *
+                cardScale * Mathf.Lerp(0.55f, 1.28f, edgeLift);
+            expansion.y += UnityEngine.Random.Range(0.2f, 0.7f) * cardScale * Mathf.Lerp(0.5f, 1.1f, edgeLift);
+            return new Vector3(expansion.x, expansion.y, 0f);
+        }
+
         private ConvergeParticleBatch CreateConvergeParticleBatch(
             Vector3 startPosition,
             Vector3 targetPosition,
@@ -1364,14 +1397,12 @@ namespace Tarot.SpreadReading
                     Mathf.Abs(normalizedX - 0.5f) * 2f,
                     Mathf.Abs(normalizedY - 0.5f) * 2f);
                 var edgeLift = Smooth01(Mathf.InverseLerp(0.42f, 1f, edgeDistance));
-                var horizontalScatter = stagedFlow
-                    ? (Mathf.Sign(localOffset.x == 0f ? UnityEngine.Random.Range(-1f, 1f) : localOffset.x) * UnityEngine.Random.Range(0.14f, 0.46f) +
-                        UnityEngine.Random.Range(-0.18f, 0.18f)) * cardScale * Mathf.Lerp(0.46f, 1f, edgeLift)
-                    : UnityEngine.Random.Range(-0.05f, 0.05f) * cardScale;
-                var verticalScatter = stagedFlow
-                    ? UnityEngine.Random.Range(0.34f, 0.92f) * cardScale * Mathf.Lerp(0.5f, 1f, edgeLift)
-                    : UnityEngine.Random.Range(0.24f, 0.62f) * cardScale * Mathf.Lerp(0.38f, 1f, edgeLift);
-                var lift = start + new Vector3(horizontalScatter, verticalScatter, 0f);
+                var lift = stagedFlow
+                    ? start + CreateStagedScatterOffset(localOffset, cardScale, edgeLift)
+                    : start + new Vector3(
+                        UnityEngine.Random.Range(-0.05f, 0.05f) * cardScale,
+                        UnityEngine.Random.Range(0.24f, 0.62f) * cardScale * Mathf.Lerp(0.38f, 1f, edgeLift),
+                        0f);
                 var control = start + path * UnityEngine.Random.Range(0.48f, 0.58f) + side * UnityEngine.Random.Range(-0.035f, 0.035f);
                 var target = targetPosition + new Vector3(
                     UnityEngine.Random.Range(-0.33f, 0.33f) * targetScale,
@@ -1455,7 +1486,10 @@ namespace Tarot.SpreadReading
                     var rise = Smooth01(Mathf.InverseLerp(0f, 0.32f, release));
                     stream = Smooth01(Mathf.InverseLerp(0.62f, 1f, release));
                     var lifted = Vector3.Lerp(particle.Start, particle.Lift, rise);
-                    var topDrift = side * Mathf.Sin(release * 8.5f + particle.FlowPhase) * 0.12f * (1f - stream);
+                    var topDrift = new Vector3(
+                        Mathf.Sin(release * 8.5f + particle.FlowPhase) * 0.1f,
+                        Mathf.Cos(release * 6.2f + particle.FlowPhase * 0.73f) * 0.055f,
+                        0f) * (1f - stream);
                     var upwardBreath = Vector3.up * Mathf.Sin(release * Mathf.PI) * 0.08f * (1f - stream);
                     var direct = Vector3.Lerp(particle.Lift, particle.Target, stream);
                     var streamWave = side * Mathf.Sin(stream * 8.2f + particle.FlowPhase) * 0.048f * Mathf.Sin(stream * Mathf.PI);
