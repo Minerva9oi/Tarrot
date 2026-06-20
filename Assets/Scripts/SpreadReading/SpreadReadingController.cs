@@ -1350,8 +1350,7 @@ namespace Tarot.SpreadReading
                 }
 
                 var start = startPosition + new Vector3(localOffset.x, localOffset.y, 0f);
-                var spread = new Vector3(UnityEngine.Random.Range(-0.46f, 0.46f), UnityEngine.Random.Range(0.12f, 0.68f), 0f);
-                var control = start + path * UnityEngine.Random.Range(0.28f, 0.52f) + side * UnityEngine.Random.Range(-0.38f, 0.38f) + spread;
+                var control = start + path * UnityEngine.Random.Range(0.48f, 0.58f) + side * UnityEngine.Random.Range(-0.035f, 0.035f);
                 var target = targetPosition + new Vector3(
                     UnityEngine.Random.Range(-0.33f, 0.33f) * targetScale,
                     UnityEngine.Random.Range(-0.52f, 0.52f) * targetScale,
@@ -1370,8 +1369,8 @@ namespace Tarot.SpreadReading
             for (var index = cardParticleCount; index < particleCount; index++)
             {
                 var start = GetRandomScreenLocalPosition();
-                var control = Vector3.Lerp(start, targetPosition, UnityEngine.Random.Range(0.42f, 0.64f)) +
-                    new Vector3(UnityEngine.Random.Range(-1.4f, 1.4f), UnityEngine.Random.Range(0.3f, 1.2f), 0f);
+                var control = Vector3.Lerp(start, targetPosition, UnityEngine.Random.Range(0.48f, 0.62f)) +
+                    new Vector3(UnityEngine.Random.Range(-0.06f, 0.06f), UnityEngine.Random.Range(-0.06f, 0.06f), 0f);
                 var color = UnityEngine.Random.value > 0.78f
                     ? new Color(1f, 0.9f, 0.58f, 0.9f)
                     : new Color(0.86f, 0.92f, 1f, 0.82f);
@@ -1418,10 +1417,11 @@ namespace Tarot.SpreadReading
             {
                 var particle = batch.Particles[index];
                 var release = Smooth01(Mathf.Clamp01((progress - particle.Delay) / Mathf.Max(0.01f, 1f - particle.Delay)));
-                var pull = Smooth01(Mathf.Clamp01((release - 0.08f) / 0.92f));
-                var firstLeg = Vector3.LerpUnclamped(particle.Start, particle.Control, Smooth01(Mathf.Clamp01(release / 0.42f)));
-                var secondLeg = Vector3.Lerp(particle.Control, particle.Target, pull);
-                var position = Vector3.Lerp(firstLeg, secondLeg, pull);
+                var line = Vector3.Lerp(particle.Start, particle.Target, release);
+                var direction = particle.Target - particle.Start;
+                var side = direction.sqrMagnitude > 0.0001f ? new Vector3(-direction.y, direction.x, 0f).normalized : Vector3.up;
+                var shimmer = Mathf.Sin((release * 18f) + particle.Delay * 37f) * 0.035f * Mathf.Sin(release * Mathf.PI);
+                var position = line + side * shimmer;
                 var color = particle.Color;
                 color.a = Mathf.Lerp(0.98f, 0.12f, Smooth01(Mathf.InverseLerp(0.84f, 1f, release)));
                 var scale = particle.Size * Mathf.Lerp(1.22f, particle.EndScale, release);
