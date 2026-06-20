@@ -17,8 +17,8 @@ namespace Tarot.SpreadReading
         private const float MoveDuration = 0.58f;
         private const float StagedFocusMoveDuration = 0.42f;
         private const float StagedCollectMoveDuration = 0.36f;
-        private const float StagedFocusHoldDuration = 0.18f;
-        private const float StagedParticleFlowDuration = 1.28f;
+        private const float StagedFocusHoldDuration = 0.32f;
+        private const float StagedParticleFlowDuration = 1.42f;
         private const float StagedBlackoutFadeDuration = 0.24f;
         private const float StagedSettleDuration = 0.74f;
         private const float InfoPinDelay = 3f;
@@ -26,6 +26,7 @@ namespace Tarot.SpreadReading
         private const int StagedFaceParticleCount = 980;
         private const int StagedStarParticleCount = 220;
         private const int DeckDissolveParticleCount = 150;
+        private const float StagedFocusScaleMultiplier = 1.32f;
         private const bool EnableMagicCircleEffect = false;
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -591,7 +592,7 @@ namespace Tarot.SpreadReading
             var focusPosition = GetStageFocusLocalPosition();
             var waitingPosition = GetWaitingLocalPosition(slotIndex);
             var startScale = selected.Transform.localScale.x;
-            var focusScale = startScale;
+            var focusScale = startScale * StagedFocusScaleMultiplier;
             var waitingScale = GetWaitingCardScale();
             var elapsed = 0f;
 
@@ -602,7 +603,7 @@ namespace Tarot.SpreadReading
                 var t = 1f - Mathf.Pow(1f - progress, 3f);
                 selected.Transform.localPosition = Vector3.Lerp(startPosition, focusPosition, t);
                 selected.Transform.localRotation = Quaternion.identity;
-                selected.Transform.localScale = Vector3.one * startScale;
+                selected.Transform.localScale = Vector3.one * Mathf.Lerp(startScale, focusScale, t);
                 yield return null;
             }
 
@@ -1338,6 +1339,10 @@ namespace Tarot.SpreadReading
             var bounds = sampleSprite.bounds;
             var path = targetPosition - startPosition;
             var side = new Vector3(-path.y, path.x, 0f).normalized;
+            if (side.sqrMagnitude < 0.0001f)
+            {
+                side = Vector3.right;
+            }
 
             for (var index = 0; index < cardParticleCount; index++)
             {
@@ -1350,6 +1355,16 @@ namespace Tarot.SpreadReading
                 }
 
                 var start = startPosition + new Vector3(localOffset.x, localOffset.y, 0f);
+                var normalizedX = Mathf.InverseLerp(bounds.min.x, bounds.max.x, localOffset.x / Mathf.Max(cardScale, 0.01f));
+                var normalizedY = Mathf.InverseLerp(bounds.min.y, bounds.max.y, localOffset.y / Mathf.Max(cardScale, 0.01f));
+                var edgeDistance = Mathf.Max(
+                    Mathf.Abs(normalizedX - 0.5f) * 2f,
+                    Mathf.Abs(normalizedY - 0.5f) * 2f);
+                var edgeLift = Smooth01(Mathf.InverseLerp(0.42f, 1f, edgeDistance));
+                var lift = start + new Vector3(
+                    UnityEngine.Random.Range(-0.06f, 0.06f) * cardScale,
+                    UnityEngine.Random.Range(0.18f, 0.48f) * cardScale * edgeLift,
+                    0f);
                 var control = start + path * UnityEngine.Random.Range(0.48f, 0.58f) + side * UnityEngine.Random.Range(-0.035f, 0.035f);
                 var target = targetPosition + new Vector3(
                     UnityEngine.Random.Range(-0.33f, 0.33f) * targetScale,
@@ -1357,18 +1372,21 @@ namespace Tarot.SpreadReading
                     0f);
                 particles[index] = new ConvergeParticle(
                     start,
+                    lift,
                     control,
                     target,
                     SampleSpriteColor(sampleSprite, localOffset / Mathf.Max(cardScale, 0.01f), bounds),
                     UnityEngine.Random.Range(0.032f, 0.066f),
                     UnityEngine.Random.Range(0f, 0.08f),
-                    UnityEngine.Random.Range(0.48f, 0.88f));
+                    UnityEngine.Random.Range(0.48f, 0.88f),
+                    UnityEngine.Random.Range(0f, Mathf.PI * 2f));
                 WriteParticleStaticData(index, uvs, triangles);
             }
 
             for (var index = cardParticleCount; index < particleCount; index++)
             {
                 var start = GetRandomScreenLocalPosition();
+                var lift = start + new Vector3(UnityEngine.Random.Range(-0.06f, 0.06f), UnityEngine.Random.Range(0.02f, 0.18f), 0f);
                 var control = Vector3.Lerp(start, targetPosition, UnityEngine.Random.Range(0.48f, 0.62f)) +
                     new Vector3(UnityEngine.Random.Range(-0.06f, 0.06f), UnityEngine.Random.Range(-0.06f, 0.06f), 0f);
                 var color = UnityEngine.Random.value > 0.78f
@@ -1380,12 +1398,14 @@ namespace Tarot.SpreadReading
                     0f);
                 particles[index] = new ConvergeParticle(
                     start,
+                    lift,
                     control,
                     target,
                     color,
                     UnityEngine.Random.Range(0.022f, 0.052f),
                     UnityEngine.Random.Range(0.04f, 0.22f),
-                    UnityEngine.Random.Range(0.36f, 0.72f));
+                    UnityEngine.Random.Range(0.36f, 0.72f),
+                    UnityEngine.Random.Range(0f, Mathf.PI * 2f));
                 WriteParticleStaticData(index, uvs, triangles);
             }
 
@@ -1417,14 +1437,18 @@ namespace Tarot.SpreadReading
             {
                 var particle = batch.Particles[index];
                 var release = Smooth01(Mathf.Clamp01((progress - particle.Delay) / Mathf.Max(0.01f, 1f - particle.Delay)));
-                var line = Vector3.Lerp(particle.Start, particle.Target, release);
+                var loosen = Smooth01(Mathf.InverseLerp(0f, 0.28f, release));
+                var stream = Smooth01(Mathf.InverseLerp(0.18f, 1f, release));
+                var lifted = Vector3.Lerp(particle.Start, particle.Lift, loosen);
+                var line = Vector3.Lerp(lifted, particle.Target, stream);
                 var direction = particle.Target - particle.Start;
                 var side = direction.sqrMagnitude > 0.0001f ? new Vector3(-direction.y, direction.x, 0f).normalized : Vector3.up;
-                var shimmer = Mathf.Sin((release * 18f) + particle.Delay * 37f) * 0.035f * Mathf.Sin(release * Mathf.PI);
-                var position = line + side * shimmer;
+                var wave = Mathf.Sin(stream * 13.5f + particle.FlowPhase) * 0.095f * Mathf.Sin(stream * Mathf.PI);
+                var ribbon = Mathf.Sin(stream * Mathf.PI) * Mathf.Lerp(0.08f, 0.018f, stream);
+                var position = line + side * (wave + ribbon);
                 var color = particle.Color;
-                color.a = Mathf.Lerp(0.98f, 0.12f, Smooth01(Mathf.InverseLerp(0.84f, 1f, release)));
-                var scale = particle.Size * Mathf.Lerp(1.22f, particle.EndScale, release);
+                color.a = Mathf.Lerp(0.98f, 0.08f, Smooth01(Mathf.InverseLerp(0.86f, 1f, stream)));
+                var scale = particle.Size * Mathf.Lerp(1.24f, particle.EndScale, stream);
                 WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
             }
 
@@ -1782,24 +1806,37 @@ namespace Tarot.SpreadReading
 
         private readonly struct ConvergeParticle
         {
-            public ConvergeParticle(Vector3 start, Vector3 control, Vector3 target, Color color, float size, float delay, float endScale)
+            public ConvergeParticle(
+                Vector3 start,
+                Vector3 lift,
+                Vector3 control,
+                Vector3 target,
+                Color color,
+                float size,
+                float delay,
+                float endScale,
+                float flowPhase)
             {
                 Start = start;
+                Lift = lift;
                 Control = control;
                 Target = target;
                 Color = color;
                 Size = size;
                 Delay = delay;
                 EndScale = endScale;
+                FlowPhase = flowPhase;
             }
 
             public Vector3 Start { get; }
+            public Vector3 Lift { get; }
             public Vector3 Control { get; }
             public Vector3 Target { get; }
             public Color Color { get; }
             public float Size { get; }
             public float Delay { get; }
             public float EndScale { get; }
+            public float FlowPhase { get; }
         }
 
         private sealed class ConvergeParticleBatch
