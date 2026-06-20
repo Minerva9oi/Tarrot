@@ -29,11 +29,12 @@ namespace Tarot.Appearance
         private const int StarTrailPointCount = 12;
         private const float StarTrailMaxArcDegrees = 34f;
         private const float StarTrailOuterRadius = 11.5f;
+        private const float RestoreFadeDuration = 1.6f;
 
         [SerializeField] private Color nearBlack = new(0.005f, 0.006f, 0.01f, 1f);
         [SerializeField] private Color starColor = new(0.88f, 0.92f, 1f, 1f);
         [SerializeField] private Color warmStarColor = new(1f, 0.94f, 0.74f, 1f);
-        [SerializeField] private float idleBreathSpeed = 0.24f;
+        [SerializeField] private float idleBreathSpeed = 0.3f;
         [SerializeField] private float awakenedBrightness = 1.65f;
         [SerializeField] private float gatherSpeed = 2.8f;
 
@@ -53,6 +54,7 @@ namespace Tarot.Appearance
         private float starTrailTargetIntensity;
         private float starTrailIntensity;
         private float starTrailDirection = 1f;
+        private float restoreProgress = 1f;
 
         public ReadingBackgroundState State { get; private set; } = ReadingBackgroundState.Idle;
 
@@ -88,7 +90,12 @@ namespace Tarot.Appearance
 
             if (State == ReadingBackgroundState.Restoring)
             {
-                State = ReadingBackgroundState.Idle;
+                restoreProgress = Mathf.MoveTowards(restoreProgress, 1f, Time.deltaTime / RestoreFadeDuration);
+                if (restoreProgress >= 0.999f)
+                {
+                    restoreProgress = 1f;
+                    State = ReadingBackgroundState.Idle;
+                }
             }
         }
 
@@ -127,22 +134,26 @@ namespace Tarot.Appearance
 
         public void SetIdle()
         {
+            restoreProgress = 1f;
             State = ReadingBackgroundState.Idle;
         }
 
         public void Awaken()
         {
+            restoreProgress = 1f;
             State = ReadingBackgroundState.Awakened;
         }
 
         public void GatherTo(Vector3 worldPosition)
         {
             gatherTarget = worldPosition;
+            restoreProgress = 0f;
             State = ReadingBackgroundState.Gathering;
         }
 
         public void Restore()
         {
+            restoreProgress = 0f;
             State = ReadingBackgroundState.Restoring;
         }
 
@@ -273,7 +284,7 @@ namespace Tarot.Appearance
             {
                 ReadingBackgroundState.Awakened => awakenedBrightness,
                 ReadingBackgroundState.Gathering => 2.1f,
-                ReadingBackgroundState.Restoring => 1.2f,
+                ReadingBackgroundState.Restoring => Mathf.Lerp(0.18f, 1f, Smooth01(restoreProgress)),
                 _ => 1f
             };
 
@@ -282,7 +293,8 @@ namespace Tarot.Appearance
             color.a = Mathf.Clamp01(alpha * Mathf.Lerp(1f, 1.62f, starTrailIntensity));
             star.Renderer.color = color;
 
-            var scale = star.BaseSize * StarSizeMultiplier * (State == ReadingBackgroundState.Gathering ? 1.55f : 1f);
+            var scaleBreath = 1f + Mathf.Sin(time * idleBreathSpeed * 0.9f + star.Phase) * star.BreathAmount * 0.5f;
+            var scale = star.BaseSize * StarSizeMultiplier * scaleBreath * (State == ReadingBackgroundState.Gathering ? 1.55f : 1f);
             if (starTrailIntensity > 0.01f && State != ReadingBackgroundState.Gathering)
             {
                 star.Transform.localRotation = Quaternion.identity;
@@ -540,15 +552,15 @@ namespace Tarot.Appearance
 
             if (roll > 0.94f)
             {
-                return new StarKind(0.11f, 0.18f, 0.9f, 1f, 0.18f);
+                return new StarKind(0.11f, 0.18f, 0.9f, 1f, 0.24f);
             }
 
             if (roll > 0.72f)
             {
-                return new StarKind(0.064f, 0.12f, 0.62f, 0.9f, 0.14f);
+                return new StarKind(0.064f, 0.12f, 0.62f, 0.9f, 0.2f);
             }
 
-            return new StarKind(0.034f, 0.07f, 0.36f, 0.62f, 0.1f);
+            return new StarKind(0.034f, 0.07f, 0.36f, 0.62f, 0.16f);
         }
 
         private static Sprite CreateStarSprite()

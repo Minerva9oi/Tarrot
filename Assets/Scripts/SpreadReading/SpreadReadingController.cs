@@ -15,11 +15,11 @@ namespace Tarot.SpreadReading
     {
         private const float RevealedCardScale = 1.36f;
         private const float MoveDuration = 0.58f;
-        private const float StagedFocusMoveDuration = 0.42f;
+        private const float StagedFocusMoveDuration = 0.52f;
         private const float StagedCollectMoveDuration = 0.36f;
         private const float StagedFocusHoldDuration = 0.36f;
-        private const float StagedParticleFlowDuration = 2.05f;
-        private const float StagedBlackoutFadeDuration = 0.3f;
+        private const float StagedParticleFlowDuration = 2.22f;
+        private const float StagedBlackoutFadeDuration = 0.82f;
         private const float StagedSettleDuration = 0.74f;
         private const float InfoPinDelay = 3f;
         private const int ConvergeParticleCount = 360;
@@ -784,7 +784,7 @@ namespace Tarot.SpreadReading
             {
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / StagedParticleFlowDuration);
-                var blackoutIn = Smooth01(Mathf.InverseLerp(0.08f, 0.44f, progress));
+                var blackoutIn = Smooth01(Mathf.InverseLerp(0.46f, 0.78f, progress));
                 var cardFade = 1f - Smooth01(Mathf.InverseLerp(0.12f, 0.42f, progress));
                 selected.Renderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * cardFade);
                 SetBlackoutAlpha(Mathf.Lerp(0f, 0.92f, blackoutIn));
@@ -797,6 +797,7 @@ namespace Tarot.SpreadReading
             selected.Transform.localRotation = GetCardRotation(orientation);
             selected.Transform.localScale = Vector3.one * waitingScale;
             selected.Renderer.color = baseColor;
+            backgroundManager?.Restore();
 
             elapsed = 0f;
             while (elapsed < StagedBlackoutFadeDuration)
@@ -1381,7 +1382,8 @@ namespace Tarot.SpreadReading
                     stagedFlow ? UnityEngine.Random.Range(0.058f, 0.116f) : UnityEngine.Random.Range(0.032f, 0.066f),
                     stagedFlow ? UnityEngine.Random.Range(0f, 0.045f) : UnityEngine.Random.Range(0f, 0.08f),
                     stagedFlow ? UnityEngine.Random.Range(0.58f, 0.98f) : UnityEngine.Random.Range(0.48f, 0.88f),
-                    UnityEngine.Random.Range(0f, Mathf.PI * 2f));
+                    UnityEngine.Random.Range(0f, Mathf.PI * 2f),
+                    false);
                 WriteParticleStaticData(index, uvs, triangles);
             }
 
@@ -1407,7 +1409,8 @@ namespace Tarot.SpreadReading
                     stagedFlow ? UnityEngine.Random.Range(0.04f, 0.088f) : UnityEngine.Random.Range(0.022f, 0.052f),
                     stagedFlow ? UnityEngine.Random.Range(0.1f, 0.26f) : UnityEngine.Random.Range(0.04f, 0.22f),
                     stagedFlow ? UnityEngine.Random.Range(0.52f, 0.88f) : UnityEngine.Random.Range(0.36f, 0.72f),
-                    UnityEngine.Random.Range(0f, Mathf.PI * 2f));
+                    UnityEngine.Random.Range(0f, Mathf.PI * 2f),
+                    stagedFlow);
                 WriteParticleStaticData(index, uvs, triangles);
             }
 
@@ -1445,8 +1448,8 @@ namespace Tarot.SpreadReading
                 float stream;
                 if (batch.StagedFlow)
                 {
-                    var rise = Smooth01(Mathf.InverseLerp(0f, 0.34f, release));
-                    stream = Smooth01(Mathf.InverseLerp(0.48f, 1f, release));
+                    var rise = Smooth01(Mathf.InverseLerp(0f, 0.32f, release));
+                    stream = Smooth01(Mathf.InverseLerp(0.62f, 1f, release));
                     var lifted = Vector3.Lerp(particle.Start, particle.Lift, rise);
                     var topDrift = side * Mathf.Sin(release * 8.5f + particle.FlowPhase) * 0.035f * (1f - stream);
                     var upwardBreath = Vector3.up * Mathf.Sin(release * Mathf.PI) * 0.045f * (1f - stream);
@@ -1468,7 +1471,12 @@ namespace Tarot.SpreadReading
                 }
 
                 var color = particle.Color;
-                color.a = Mathf.Lerp(batch.StagedFlow ? 1f : 0.98f, 0.08f, Smooth01(Mathf.InverseLerp(0.88f, 1f, stream)));
+                var materialize = batch.StagedFlow
+                    ? (particle.JoinsLate
+                        ? Smooth01(Mathf.InverseLerp(0.62f, 0.76f, release))
+                        : Smooth01(Mathf.InverseLerp(0f, 0.08f, release)))
+                    : 1f;
+                color.a = Mathf.Lerp(batch.StagedFlow ? 1f : 0.98f, 0.08f, Smooth01(Mathf.InverseLerp(0.88f, 1f, stream))) * materialize;
                 var scale = particle.Size * Mathf.Lerp(batch.StagedFlow ? 1.18f : 1.24f, particle.EndScale, stream);
                 WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
             }
@@ -1836,7 +1844,8 @@ namespace Tarot.SpreadReading
                 float size,
                 float delay,
                 float endScale,
-                float flowPhase)
+                float flowPhase,
+                bool joinsLate)
             {
                 Start = start;
                 Lift = lift;
@@ -1847,6 +1856,7 @@ namespace Tarot.SpreadReading
                 Delay = delay;
                 EndScale = endScale;
                 FlowPhase = flowPhase;
+                JoinsLate = joinsLate;
             }
 
             public Vector3 Start { get; }
@@ -1858,6 +1868,7 @@ namespace Tarot.SpreadReading
             public float Delay { get; }
             public float EndScale { get; }
             public float FlowPhase { get; }
+            public bool JoinsLate { get; }
         }
 
         private sealed class ConvergeParticleBatch
