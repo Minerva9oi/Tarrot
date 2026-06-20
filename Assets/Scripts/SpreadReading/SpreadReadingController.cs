@@ -25,8 +25,8 @@ namespace Tarot.SpreadReading
         private const int StagedFaceParticleCount = 4800;
         private const int DeckDissolveParticleCount = 150;
         private const float StagedFocusScaleMultiplier = 1.32f;
-        private const float WaitingCircleDuration = 0.62f;
         private const float ImmediateFinalSettleDuration = 0.78f;
+        private const float WaitingMeteorDuration = 0.78f;
         private const bool EnableMagicCircleEffect = false;
 
         [SerializeField] private BackgroundManager backgroundManager;
@@ -54,13 +54,16 @@ namespace Tarot.SpreadReading
         private Sprite fallbackCardFaceSprite;
         private Sprite particleSprite;
         private Sprite blackoutSprite;
-        private Sprite smallHexagramSprite;
+        private Sprite summonMeteorSprite;
+        private Sprite impactRingSprite;
         private Material particleMaterial;
         private SpriteRenderer blackoutRenderer;
         private Transform magicCircleRoot;
         private bool isResolving;
         private bool drawStarted;
         private bool immediateFinalCentered;
+        private bool stagedFinalLayoutComplete;
+        private int pinnedStagedResultIndex = -1;
         private string activeQuestion = string.Empty;
         private RectTransform controlsHotspot;
         private RectTransform controlsPanel;
@@ -90,7 +93,8 @@ namespace Tarot.SpreadReading
             fallbackCardFaceSprite = CreateCardSprite(cardFaceColor, new Color(0.28f, 0.24f, 0.2f, 1f), false);
             particleSprite = CreateParticleSprite();
             blackoutSprite = CreateSolidSprite(Color.white);
-            smallHexagramSprite = CreateSmallHexagramSprite();
+            summonMeteorSprite = CreateSummonMeteorSprite();
+            impactRingSprite = CreateRingSprite();
             particleMaterial = CreateParticleMaterial(particleSprite);
 
             EnsureEventSystem();
@@ -106,6 +110,7 @@ namespace Tarot.SpreadReading
             HandleQuestionInput();
             UpdateHiddenControls();
             UpdateInfoPanel();
+            UpdateStagedResultHover();
         }
 
         public void Initialize(SpreadDefinition definition)
@@ -154,6 +159,8 @@ namespace Tarot.SpreadReading
             isResolving = false;
             drawStarted = false;
             immediateFinalCentered = false;
+            stagedFinalLayoutComplete = false;
+            pinnedStagedResultIndex = -1;
             activeQuestion = string.Empty;
 
             for (var index = transform.childCount - 1; index >= 0; index--)
@@ -669,6 +676,9 @@ namespace Tarot.SpreadReading
                 ShowCardResult(index, stagedDraws[index].Draw);
             }
 
+            stagedFinalLayoutComplete = true;
+            pinnedStagedResultIndex = -1;
+            SetStagedResultTextVisibility(-1);
             isResolving = false;
         }
 
@@ -709,6 +719,7 @@ namespace Tarot.SpreadReading
                 view.Transform.localPosition = slotAnchors[index].localPosition;
                 view.Transform.localRotation = GetCardRotation(stagedDraws[index].Draw.Orientation);
                 view.Transform.localScale = Vector3.one * finalScale;
+                view.Collider.enabled = true;
             }
         }
 
@@ -751,7 +762,7 @@ namespace Tarot.SpreadReading
                 view.Transform.localPosition = finalPositions[index];
                 view.Transform.localRotation = GetCardRotation(drawnCards[index].Orientation);
                 view.Transform.localScale = Vector3.one * startScales[index];
-                SetResultTextViewportPosition(index, GetImmediateFinalViewportPosition(index), -190f);
+                SetResultTextViewportPosition(index, GetImmediateFinalViewportPosition(index), -320f);
             }
         }
 
@@ -832,16 +843,12 @@ namespace Tarot.SpreadReading
             float waitingScale)
         {
             var faceSprite = selected.Renderer.sprite != null ? selected.Renderer.sprite : fallbackCardFaceSprite;
-            var flowBatch = CreateConvergeParticleBatch(
+            var flowBatch = CreateStagedDissolveParticleBatch(
                 focusPosition,
-                focusPosition + new Vector3(0f, focusScale * 1.2f, 0f),
-                focusScale,
                 focusScale,
                 faceSprite,
                 StagedFaceParticleCount,
-                0,
-                orientation,
-                true);
+                orientation);
 
             var baseColor = selected.Renderer.color;
             var elapsed = 0f;
@@ -865,33 +872,50 @@ namespace Tarot.SpreadReading
 
         private IEnumerator SummonWaitingCard(CardDrawCardView selected, Vector3 waitingPosition, float waitingScale, Color finalColor)
         {
-            var circleRoot = new GameObject("Waiting Card Hexagram").transform;
-            circleRoot.SetParent(transform, false);
-            circleRoot.localPosition = waitingPosition;
-            waitingCircleRoots.Add(circleRoot);
+            var effectRoot = new GameObject("Waiting Card Meteor").transform;
+            effectRoot.SetParent(transform, false);
+            waitingCircleRoots.Add(effectRoot);
 
-            var circleObject = new GameObject("Hexagram");
-            circleObject.transform.SetParent(circleRoot, false);
-            var circleRenderer = circleObject.AddComponent<SpriteRenderer>();
-            circleRenderer.sprite = smallHexagramSprite;
-            circleRenderer.color = new Color(0.9f, 0.72f, 0.34f, 0f);
-            circleRenderer.sortingOrder = 2440;
-            circleObject.transform.localScale = Vector3.one * (waitingScale * 3.1f);
+            var meteorObject = new GameObject("Summon Meteor");
+            meteorObject.transform.SetParent(effectRoot, false);
+            var meteorRenderer = meteorObject.AddComponent<SpriteRenderer>();
+            meteorRenderer.sprite = summonMeteorSprite;
+            meteorRenderer.color = Color.clear;
+            meteorRenderer.sortingOrder = 2440;
 
-            var startPosition = waitingPosition + new Vector3(0f, -0.12f, 0f);
+            var ringObject = new GameObject("Meteor Impact Ring");
+            ringObject.transform.SetParent(effectRoot, false);
+            ringObject.transform.localPosition = waitingPosition;
+            var ringRenderer = ringObject.AddComponent<SpriteRenderer>();
+            ringRenderer.sprite = impactRingSprite;
+            ringRenderer.color = Color.clear;
+            ringRenderer.sortingOrder = 2438;
+
+            var meteorStart = waitingPosition + new Vector3(UnityEngine.Random.value > 0.5f ? -5.2f : 5.2f, 3.25f, 0f);
+            var meteorAngle = Mathf.Atan2(waitingPosition.y - meteorStart.y, waitingPosition.x - meteorStart.x) * Mathf.Rad2Deg;
+            meteorObject.transform.localRotation = Quaternion.Euler(0f, 0f, meteorAngle);
+
+            var cardStartPosition = waitingPosition + new Vector3(0f, -0.1f, 0f);
             var elapsed = 0f;
-            while (elapsed < WaitingCircleDuration)
+            while (elapsed < WaitingMeteorDuration)
             {
                 elapsed += Time.deltaTime;
-                var progress = Mathf.Clamp01(elapsed / WaitingCircleDuration);
-                var appear = Smooth01(Mathf.InverseLerp(0.18f, 0.82f, progress));
-                var circlePulse = Mathf.Sin(progress * Mathf.PI);
-                var circleColor = circleRenderer.color;
-                circleColor.a = 0.08f + circlePulse * 0.18f;
-                circleRenderer.color = circleColor;
-                circleRoot.localRotation = Quaternion.Euler(0f, 0f, progress * 18f);
+                var progress = Mathf.Clamp01(elapsed / WaitingMeteorDuration);
+                var meteorProgress = Smooth01(Mathf.InverseLerp(0f, 0.56f, progress));
+                meteorObject.transform.localPosition = Vector3.Lerp(meteorStart, waitingPosition, meteorProgress);
+                meteorObject.transform.localScale = new Vector3(1.25f, 1.25f, 1f) * Mathf.Lerp(1.25f, 0.74f, meteorProgress);
+                var meteorColor = new Color(1f, 0.86f, 0.46f, 1f);
+                meteorColor.a = Mathf.Sin(Mathf.Clamp01(progress / 0.58f) * Mathf.PI) * 0.94f;
+                meteorRenderer.color = meteorColor;
 
-                selected.Transform.localPosition = Vector3.Lerp(startPosition, waitingPosition, appear);
+                var impact = Smooth01(Mathf.InverseLerp(0.42f, 0.84f, progress));
+                ringObject.transform.localScale = Vector3.one * Mathf.Lerp(waitingScale * 1.2f, waitingScale * 3.0f, impact);
+                var ringColor = new Color(0.96f, 0.78f, 0.34f, 1f);
+                ringColor.a = Mathf.Sin(impact * Mathf.PI) * 0.34f;
+                ringRenderer.color = ringColor;
+
+                var appear = Smooth01(Mathf.InverseLerp(0.46f, 0.92f, progress));
+                selected.Transform.localPosition = Vector3.Lerp(cardStartPosition, waitingPosition, appear);
                 selected.Renderer.color = new Color(finalColor.r, finalColor.g, finalColor.b, finalColor.a * appear);
                 yield return null;
             }
@@ -899,8 +923,8 @@ namespace Tarot.SpreadReading
             selected.Transform.localPosition = waitingPosition;
             selected.Transform.localScale = Vector3.one * waitingScale;
             selected.Renderer.color = finalColor;
-            waitingCircleRoots.Remove(circleRoot);
-            Destroy(circleRoot.gameObject);
+            waitingCircleRoots.Remove(effectRoot);
+            Destroy(effectRoot.gameObject);
         }
 
         private void ApplyCardFace(CardDrawCardView selected, TarotOrientation orientation)
@@ -993,6 +1017,8 @@ namespace Tarot.SpreadReading
             immediateDrawViews.Clear();
             ClearWaitingCircles();
             immediateFinalCentered = false;
+            stagedFinalLayoutComplete = false;
+            pinnedStagedResultIndex = -1;
             backgroundManager?.SetIdle();
             isResolving = false;
             activeQuestion = string.Empty;
@@ -1027,6 +1053,13 @@ namespace Tarot.SpreadReading
                 return RevealedCardScale;
             }
 
+            var desiredScale = 1.92f;
+            var fittedScale = GetFittedStagedCardScale(desiredScale);
+            if (fittedScale > 0.01f)
+            {
+                return fittedScale;
+            }
+
             return spreadDefinition.CardCount switch
             {
                 >= 7 => 1.22f,
@@ -1037,6 +1070,49 @@ namespace Tarot.SpreadReading
             };
         }
 
+        private float GetFittedStagedCardScale(float desiredScale)
+        {
+            if (slotAnchors == null || slotAnchors.Length < 2 || cardBackSprite == null)
+            {
+                return 0f;
+            }
+
+            var cardSize = cardBackSprite.bounds.size;
+            var gap = 0.16f;
+            var maxDistance = 0f;
+            var allowedScale = desiredScale;
+            for (var first = 0; first < slotAnchors.Length; first++)
+            {
+                if (slotAnchors[first] == null)
+                {
+                    continue;
+                }
+
+                for (var second = first + 1; second < slotAnchors.Length; second++)
+                {
+                    if (slotAnchors[second] == null)
+                    {
+                        continue;
+                    }
+
+                    var delta = slotAnchors[first].localPosition - slotAnchors[second].localPosition;
+                    var dx = Mathf.Abs(delta.x);
+                    var dy = Mathf.Abs(delta.y);
+                    maxDistance = Mathf.Max(maxDistance, delta.magnitude);
+                    var scaleByX = dx > 0.001f ? (dx - gap) / Mathf.Max(0.001f, cardSize.x) : 0f;
+                    var scaleByY = dy > 0.001f ? (dy - gap) / Mathf.Max(0.001f, cardSize.y) : 0f;
+                    allowedScale = Mathf.Min(allowedScale, Mathf.Max(scaleByX, scaleByY));
+                }
+            }
+
+            if (maxDistance < 0.1f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp(allowedScale, 0.92f, desiredScale);
+        }
+
         private float GetStageFocusCardScale()
         {
             return 1.58f;
@@ -1044,7 +1120,7 @@ namespace Tarot.SpreadReading
 
         private float GetWaitingCardScale()
         {
-            return 0.44f;
+            return 0.56f;
         }
 
         private Vector3 GetStageFocusLocalPosition()
@@ -1259,6 +1335,7 @@ namespace Tarot.SpreadReading
                 var child = transform.GetChild(index);
                 if (child.name.IndexOf("Spread Converge Particles", StringComparison.Ordinal) >= 0 ||
                     child.name.IndexOf("Spread Magic Circle", StringComparison.Ordinal) >= 0 ||
+                    child.name.IndexOf("Waiting Card Meteor", StringComparison.Ordinal) >= 0 ||
                     child.name.IndexOf("Waiting Card Hexagram", StringComparison.Ordinal) >= 0)
                 {
                     Destroy(child.gameObject);
@@ -1299,7 +1376,7 @@ namespace Tarot.SpreadReading
                     var textViewport = immediateFinalCentered && spreadDefinition.RevealFlow == SpreadRevealFlow.ImmediateReveal
                         ? GetImmediateFinalViewportPosition(index)
                         : slot.ViewportPosition;
-                    var yOffset = immediateFinalCentered && spreadDefinition.RevealFlow == SpreadRevealFlow.ImmediateReveal ? -190f : -164f;
+                    var yOffset = immediateFinalCentered && spreadDefinition.RevealFlow == SpreadRevealFlow.ImmediateReveal ? -320f : -164f;
                     SetResultTextViewportPosition(index, textViewport, yOffset);
                 }
             }
@@ -1384,6 +1461,69 @@ namespace Tarot.SpreadReading
             {
                 infoProgressImage.fillAmount = infoPinned ? 1f : Mathf.Clamp01(infoHoverTimer / InfoPinDelay);
                 infoProgressImage.enabled = isHovering || infoPinned || infoProgressImage.fillAmount > 0.01f;
+            }
+        }
+
+        private void UpdateStagedResultHover()
+        {
+            if (!stagedFinalLayoutComplete || spreadDefinition.RevealFlow != SpreadRevealFlow.StagedReveal)
+            {
+                return;
+            }
+
+            var hoveredIndex = GetHoveredStagedResultIndex();
+            if (UnityEngine.Input.GetMouseButtonDown(0))
+            {
+                pinnedStagedResultIndex = hoveredIndex >= 0 && pinnedStagedResultIndex != hoveredIndex
+                    ? hoveredIndex
+                    : -1;
+            }
+
+            var activeIndex = pinnedStagedResultIndex >= 0 ? pinnedStagedResultIndex : hoveredIndex;
+            SetStagedResultTextVisibility(activeIndex);
+        }
+
+        private int GetHoveredStagedResultIndex()
+        {
+            var mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                return -1;
+            }
+
+            var worldPosition = mainCamera.ScreenToWorldPoint(UnityEngine.Input.mousePosition);
+            var hits = Physics2D.OverlapPointAll(new Vector2(worldPosition.x, worldPosition.y));
+            var bestIndex = -1;
+            var bestSortingOrder = int.MinValue;
+            for (var hitIndex = 0; hitIndex < hits.Length; hitIndex++)
+            {
+                var hit = hits[hitIndex];
+                for (var index = 0; index < stagedDraws.Count; index++)
+                {
+                    var view = stagedDraws[index].View;
+                    if (view == null || view.Collider == null || hit != view.Collider || view.Renderer.sortingOrder <= bestSortingOrder)
+                    {
+                        continue;
+                    }
+
+                    bestSortingOrder = view.Renderer.sortingOrder;
+                    bestIndex = index;
+                }
+            }
+
+            return bestIndex;
+        }
+
+        private void SetStagedResultTextVisibility(int activeIndex)
+        {
+            for (var index = 0; index < cardResultTexts.Length; index++)
+            {
+                if (cardResultTexts[index] == null)
+                {
+                    continue;
+                }
+
+                cardResultTexts[index].gameObject.SetActive(index == activeIndex);
             }
         }
 
@@ -1494,6 +1634,82 @@ namespace Tarot.SpreadReading
                 cardScale * Mathf.Lerp(0.55f, 1.28f, edgeLift);
             expansion.y += UnityEngine.Random.Range(0.2f, 0.7f) * cardScale * Mathf.Lerp(0.5f, 1.1f, edgeLift);
             return new Vector3(expansion.x, expansion.y, 0f);
+        }
+
+        private ConvergeParticleBatch CreateStagedDissolveParticleBatch(
+            Vector3 centerPosition,
+            float cardScale,
+            Sprite sampleSprite,
+            int particleCount,
+            TarotOrientation orientation)
+        {
+            if (particleMaterial == null || sampleSprite == null)
+            {
+                return null;
+            }
+
+            var batchObject = new GameObject("Spread Converge Particles");
+            batchObject.transform.SetParent(transform, false);
+
+            particleCount = Mathf.Max(0, particleCount);
+            var particles = new ConvergeParticle[particleCount];
+            var vertices = new Vector3[particleCount * 4];
+            var colors = new Color[particleCount * 4];
+            var uvs = new Vector2[particleCount * 4];
+            var triangles = new int[particleCount * 6];
+            var bounds = sampleSprite.bounds;
+
+            for (var index = 0; index < particleCount; index++)
+            {
+                var localOffset = new Vector2(
+                    UnityEngine.Random.Range(bounds.min.x, bounds.max.x) * cardScale,
+                    UnityEngine.Random.Range(bounds.min.y, bounds.max.y) * cardScale);
+                if (orientation == TarotOrientation.Reversed)
+                {
+                    localOffset = -localOffset;
+                }
+
+                var normalizedX = Mathf.InverseLerp(bounds.min.x, bounds.max.x, localOffset.x / Mathf.Max(cardScale, 0.01f));
+                var normalizedY = Mathf.InverseLerp(bounds.min.y, bounds.max.y, localOffset.y / Mathf.Max(cardScale, 0.01f));
+                var centerDistance = Vector2.Distance(new Vector2(normalizedX, normalizedY), new Vector2(0.5f, 0.5f));
+                var edgeDistance = Mathf.Max(Mathf.Abs(normalizedX - 0.5f) * 2f, Mathf.Abs(normalizedY - 0.5f) * 2f);
+                var edgeLift = Smooth01(Mathf.InverseLerp(0.28f, 1f, edgeDistance));
+                var start = centerPosition + new Vector3(localOffset.x, localOffset.y, 0f);
+                var target = start + CreateStagedScatterOffset(localOffset, cardScale, edgeLift) +
+                    new Vector3(
+                        UnityEngine.Random.Range(-0.18f, 0.18f) * cardScale,
+                        UnityEngine.Random.Range(0.18f, 0.64f) * cardScale,
+                        0f);
+                var color = SampleSpriteColor(sampleSprite, localOffset / Mathf.Max(cardScale, 0.01f), bounds);
+                particles[index] = new ConvergeParticle(
+                    start,
+                    target,
+                    start,
+                    target,
+                    color,
+                    UnityEngine.Random.Range(0.058f, 0.118f),
+                    UnityEngine.Random.Range(0f, 0.12f) + centerDistance * UnityEngine.Random.Range(0.02f, 0.16f),
+                    UnityEngine.Random.Range(0.34f, 0.62f),
+                    UnityEngine.Random.Range(0f, Mathf.PI * 2f),
+                    false);
+                WriteParticleStaticData(index, uvs, triangles);
+            }
+
+            var mesh = new Mesh { name = "Spread Face Dissolve Particles" };
+            mesh.MarkDynamic();
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.colors = colors;
+            mesh.triangles = triangles;
+            mesh.bounds = new Bounds(Vector3.zero, new Vector3(42f, 24f, 2f));
+
+            var meshFilter = batchObject.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = mesh;
+            var meshRenderer = batchObject.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = particleMaterial;
+            meshRenderer.sortingOrder = 2500;
+
+            return new ConvergeParticleBatch(batchObject, mesh, particles, vertices, colors, true, true);
         }
 
         private ConvergeParticleBatch CreateConvergeParticleBatch(
@@ -1612,7 +1828,7 @@ namespace Tarot.SpreadReading
             meshRenderer.sharedMaterial = particleMaterial;
             meshRenderer.sortingOrder = 2500;
 
-            return new ConvergeParticleBatch(batchObject, mesh, particles, vertices, colors, stagedFlow);
+            return new ConvergeParticleBatch(batchObject, mesh, particles, vertices, colors, stagedFlow, false);
         }
 
         private void UpdateConvergeParticleBatch(ConvergeParticleBatch batch, float progress)
@@ -1630,7 +1846,17 @@ namespace Tarot.SpreadReading
                 var side = direction.sqrMagnitude > 0.0001f ? new Vector3(-direction.y, direction.x, 0f).normalized : Vector3.up;
                 Vector3 position;
                 float stream;
-                if (batch.StagedFlow)
+                if (batch.DissolveOnly)
+                {
+                    stream = Smooth01(Mathf.InverseLerp(0.08f, 1f, release));
+                    var tremble = new Vector3(
+                        Mathf.Sin(release * 18f + particle.FlowPhase) * 0.028f,
+                        Mathf.Cos(release * 15f + particle.FlowPhase) * 0.022f,
+                        0f);
+                    var gust = side * Mathf.Sin(stream * 13f + particle.FlowPhase) * 0.14f * Mathf.Sin(stream * Mathf.PI);
+                    position = Vector3.Lerp(particle.Start, particle.Target, stream) + tremble + gust;
+                }
+                else if (batch.StagedFlow)
                 {
                     var rise = Smooth01(Mathf.InverseLerp(0f, 0.32f, release));
                     stream = Smooth01(Mathf.InverseLerp(0.62f, 1f, release));
@@ -1661,10 +1887,14 @@ namespace Tarot.SpreadReading
                 var materialize = batch.StagedFlow
                     ? (particle.JoinsLate
                         ? Smooth01(Mathf.InverseLerp(0.62f, 0.76f, release))
-                        : Smooth01(Mathf.InverseLerp(0f, 0.08f, release)))
+                        : Smooth01(Mathf.InverseLerp(0f, batch.DissolveOnly ? 0.16f : 0.08f, release)))
                     : 1f;
-                color.a = Mathf.Lerp(batch.StagedFlow ? 1f : 0.98f, 0.08f, Smooth01(Mathf.InverseLerp(0.88f, 1f, stream))) * materialize;
-                var scale = particle.Size * Mathf.Lerp(batch.StagedFlow ? 1.18f : 1.24f, particle.EndScale, stream);
+                var fadeStart = batch.DissolveOnly ? 0.68f : 0.88f;
+                var pale = batch.DissolveOnly ? Smooth01(Mathf.InverseLerp(0.34f, 0.9f, stream)) : 0f;
+                color = Color.Lerp(color, Color.Lerp(color, Color.white, 0.42f), pale);
+                color.a = Mathf.Lerp(batch.StagedFlow ? 1f : 0.98f, 0.08f, Smooth01(Mathf.InverseLerp(fadeStart, 1f, stream))) * materialize;
+                var expansionPulse = batch.DissolveOnly ? 1f + Mathf.Sin(Mathf.Clamp01(stream / 0.34f) * Mathf.PI) * 0.12f : 1f;
+                var scale = particle.Size * expansionPulse * Mathf.Lerp(batch.StagedFlow ? 1.18f : 1.24f, particle.EndScale, stream);
                 WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
             }
 
@@ -1914,65 +2144,35 @@ namespace Tarot.SpreadReading
             return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
         }
 
-        private static Sprite CreateSmallHexagramSprite()
+        private static Sprite CreateSummonMeteorSprite()
         {
-            const int size = 192;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            const int width = 192;
+            const int height = 48;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
 
-            var center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
-            var radius = size * 0.32f;
-            var upA = PointOnCircle(center, radius, 90f);
-            var upB = PointOnCircle(center, radius, 210f);
-            var upC = PointOnCircle(center, radius, 330f);
-            var downA = PointOnCircle(center, radius, 270f);
-            var downB = PointOnCircle(center, radius, 30f);
-            var downC = PointOnCircle(center, radius, 150f);
-
-            for (var y = 0; y < size; y++)
+            var head = new Vector2(width * 0.78f, (height - 1) * 0.5f);
+            for (var y = 0; y < height; y++)
             {
-                for (var x = 0; x < size; x++)
+                for (var x = 0; x < width; x++)
                 {
                     var point = new Vector2(x, y);
-                    var normalizedRadius = Vector2.Distance(point, center) / (size * 0.5f);
-                    var outerRing = Mathf.Clamp01(1f - Mathf.Abs(normalizedRadius - 0.7f) * 54f);
-                    var innerRing = Mathf.Clamp01(1f - Mathf.Abs(normalizedRadius - 0.36f) * 58f) * 0.42f;
-                    var hexagram = Mathf.Max(
-                        TriangleLineAlpha(point, upA, upB, upC),
-                        TriangleLineAlpha(point, downA, downB, downC));
-                    var starDots = Mathf.Clamp01(1f - Mathf.Abs(normalizedRadius - 0.55f) * 24f) *
-                        Mathf.Clamp01(1f - Mathf.Abs(Mathf.Sin(Mathf.Atan2(point.y - center.y, point.x - center.x) * 6f)) * 14f) * 0.36f;
-                    var alpha = Mathf.Clamp01(outerRing * 0.72f + innerRing + hexagram * 0.82f + starDots);
+                    var tail = Mathf.Clamp01((head.x - x) / (width * 0.74f));
+                    var lineDistance = Mathf.Abs(point.y - head.y) / (height * 0.5f);
+                    var headDistance = Vector2.Distance(point, head) / (height * 0.36f);
+                    var core = Mathf.Clamp01(1f - lineDistance * 7.5f) * Mathf.Clamp01(1f - tail * 0.72f);
+                    var glow = Mathf.Clamp01(1f - lineDistance * 2.6f) * Mathf.Clamp01(1f - tail * 0.18f);
+                    var headGlow = Mathf.Clamp01(1f - headDistance) * 1.35f;
+                    var alpha = Mathf.Clamp01(core + glow * 0.34f + headGlow);
                     texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
             }
 
             texture.Apply();
-            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
-        }
-
-        private static Vector2 PointOnCircle(Vector2 center, float radius, float degrees)
-        {
-            var radians = degrees * Mathf.Deg2Rad;
-            return center + new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)) * radius;
-        }
-
-        private static float TriangleLineAlpha(Vector2 point, Vector2 a, Vector2 b, Vector2 c)
-        {
-            var distance = Mathf.Min(
-                DistanceToSegment(point, a, b),
-                Mathf.Min(DistanceToSegment(point, b, c), DistanceToSegment(point, c, a)));
-            return Mathf.Clamp01(1f - distance * 0.72f);
-        }
-
-        private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
-        {
-            var ab = b - a;
-            var t = Mathf.Clamp01(Vector2.Dot(point - a, ab) / Mathf.Max(0.0001f, Vector2.Dot(ab, ab)));
-            return Vector2.Distance(point, a + ab * t);
+            return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.78f, 0.5f), 64f);
         }
 
         private static Material CreateParticleMaterial(Sprite sprite)
@@ -2121,7 +2321,7 @@ namespace Tarot.SpreadReading
 
         private sealed class ConvergeParticleBatch
         {
-            public ConvergeParticleBatch(GameObject gameObject, Mesh mesh, ConvergeParticle[] particles, Vector3[] vertices, Color[] colors, bool stagedFlow)
+            public ConvergeParticleBatch(GameObject gameObject, Mesh mesh, ConvergeParticle[] particles, Vector3[] vertices, Color[] colors, bool stagedFlow, bool dissolveOnly)
             {
                 GameObject = gameObject;
                 Mesh = mesh;
@@ -2129,6 +2329,7 @@ namespace Tarot.SpreadReading
                 Vertices = vertices;
                 Colors = colors;
                 StagedFlow = stagedFlow;
+                DissolveOnly = dissolveOnly;
             }
 
             public GameObject GameObject { get; }
@@ -2137,6 +2338,7 @@ namespace Tarot.SpreadReading
             public Vector3[] Vertices { get; }
             public Color[] Colors { get; }
             public bool StagedFlow { get; }
+            public bool DissolveOnly { get; }
         }
 
         private sealed class HoverTarget : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
