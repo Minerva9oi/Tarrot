@@ -17,14 +17,14 @@ namespace Tarot.SpreadReading
         private const float MoveDuration = 0.58f;
         private const float StagedFocusMoveDuration = 0.42f;
         private const float StagedCollectMoveDuration = 0.36f;
-        private const float StagedFocusHoldDuration = 0.32f;
-        private const float StagedParticleFlowDuration = 1.42f;
-        private const float StagedBlackoutFadeDuration = 0.24f;
+        private const float StagedFocusHoldDuration = 0.36f;
+        private const float StagedParticleFlowDuration = 2.05f;
+        private const float StagedBlackoutFadeDuration = 0.3f;
         private const float StagedSettleDuration = 0.74f;
         private const float InfoPinDelay = 3f;
         private const int ConvergeParticleCount = 360;
-        private const int StagedFaceParticleCount = 980;
-        private const int StagedStarParticleCount = 220;
+        private const int StagedFaceParticleCount = 4800;
+        private const int StagedStarParticleCount = 520;
         private const int DeckDissolveParticleCount = 150;
         private const float StagedFocusScaleMultiplier = 1.32f;
         private const bool EnableMagicCircleEffect = false;
@@ -169,8 +169,8 @@ namespace Tarot.SpreadReading
             deckController.Initialize(
                 new CardDrawLayoutProfile(
                     spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 1.92f : 1.52f,
-                    spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 5.9f : 6.1f,
-                    spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? -5.34f : -5.46f,
+                    spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 6.45f : 6.1f,
+                    spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? -5.95f : -5.46f,
                     spreadDefinition.RevealFlow == SpreadRevealFlow.StagedReveal ? 38f : 34f,
                     GetTargetCardScale(),
                     new Vector2(0.5f, 0.4f),
@@ -775,7 +775,8 @@ namespace Tarot.SpreadReading
                 faceSprite,
                 StagedFaceParticleCount,
                 StagedStarParticleCount,
-                orientation);
+                orientation,
+                true);
 
             var baseColor = selected.Renderer.color;
             var elapsed = 0f;
@@ -783,8 +784,8 @@ namespace Tarot.SpreadReading
             {
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / StagedParticleFlowDuration);
-                var blackoutIn = Smooth01(Mathf.InverseLerp(0f, 0.26f, progress));
-                var cardFade = 1f - Smooth01(Mathf.InverseLerp(0.04f, 0.3f, progress));
+                var blackoutIn = Smooth01(Mathf.InverseLerp(0.08f, 0.44f, progress));
+                var cardFade = 1f - Smooth01(Mathf.InverseLerp(0.12f, 0.42f, progress));
                 selected.Renderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * cardFade);
                 SetBlackoutAlpha(Mathf.Lerp(0f, 0.92f, blackoutIn));
                 UpdateConvergeParticleBatch(flowBatch, progress);
@@ -1320,7 +1321,8 @@ namespace Tarot.SpreadReading
             Sprite sampleSprite,
             int cardParticleCount,
             int starParticleCount,
-            TarotOrientation orientation)
+            TarotOrientation orientation,
+            bool stagedFlow = false)
         {
             if (particleMaterial == null || sampleSprite == null)
             {
@@ -1362,8 +1364,8 @@ namespace Tarot.SpreadReading
                     Mathf.Abs(normalizedY - 0.5f) * 2f);
                 var edgeLift = Smooth01(Mathf.InverseLerp(0.42f, 1f, edgeDistance));
                 var lift = start + new Vector3(
-                    UnityEngine.Random.Range(-0.06f, 0.06f) * cardScale,
-                    UnityEngine.Random.Range(0.18f, 0.48f) * cardScale * edgeLift,
+                    UnityEngine.Random.Range(-0.05f, 0.05f) * cardScale,
+                    UnityEngine.Random.Range(0.24f, 0.62f) * cardScale * Mathf.Lerp(0.38f, 1f, edgeLift),
                     0f);
                 var control = start + path * UnityEngine.Random.Range(0.48f, 0.58f) + side * UnityEngine.Random.Range(-0.035f, 0.035f);
                 var target = targetPosition + new Vector3(
@@ -1376,9 +1378,9 @@ namespace Tarot.SpreadReading
                     control,
                     target,
                     SampleSpriteColor(sampleSprite, localOffset / Mathf.Max(cardScale, 0.01f), bounds),
-                    UnityEngine.Random.Range(0.032f, 0.066f),
-                    UnityEngine.Random.Range(0f, 0.08f),
-                    UnityEngine.Random.Range(0.48f, 0.88f),
+                    stagedFlow ? UnityEngine.Random.Range(0.058f, 0.116f) : UnityEngine.Random.Range(0.032f, 0.066f),
+                    stagedFlow ? UnityEngine.Random.Range(0f, 0.045f) : UnityEngine.Random.Range(0f, 0.08f),
+                    stagedFlow ? UnityEngine.Random.Range(0.58f, 0.98f) : UnityEngine.Random.Range(0.48f, 0.88f),
                     UnityEngine.Random.Range(0f, Mathf.PI * 2f));
                 WriteParticleStaticData(index, uvs, triangles);
             }
@@ -1402,9 +1404,9 @@ namespace Tarot.SpreadReading
                     control,
                     target,
                     color,
-                    UnityEngine.Random.Range(0.022f, 0.052f),
-                    UnityEngine.Random.Range(0.04f, 0.22f),
-                    UnityEngine.Random.Range(0.36f, 0.72f),
+                    stagedFlow ? UnityEngine.Random.Range(0.04f, 0.088f) : UnityEngine.Random.Range(0.022f, 0.052f),
+                    stagedFlow ? UnityEngine.Random.Range(0.1f, 0.26f) : UnityEngine.Random.Range(0.04f, 0.22f),
+                    stagedFlow ? UnityEngine.Random.Range(0.52f, 0.88f) : UnityEngine.Random.Range(0.36f, 0.72f),
                     UnityEngine.Random.Range(0f, Mathf.PI * 2f));
                 WriteParticleStaticData(index, uvs, triangles);
             }
@@ -1423,7 +1425,7 @@ namespace Tarot.SpreadReading
             meshRenderer.sharedMaterial = particleMaterial;
             meshRenderer.sortingOrder = 2500;
 
-            return new ConvergeParticleBatch(batchObject, mesh, particles, vertices, colors);
+            return new ConvergeParticleBatch(batchObject, mesh, particles, vertices, colors, stagedFlow);
         }
 
         private void UpdateConvergeParticleBatch(ConvergeParticleBatch batch, float progress)
@@ -1437,18 +1439,37 @@ namespace Tarot.SpreadReading
             {
                 var particle = batch.Particles[index];
                 var release = Smooth01(Mathf.Clamp01((progress - particle.Delay) / Mathf.Max(0.01f, 1f - particle.Delay)));
-                var loosen = Smooth01(Mathf.InverseLerp(0f, 0.28f, release));
-                var stream = Smooth01(Mathf.InverseLerp(0.18f, 1f, release));
-                var lifted = Vector3.Lerp(particle.Start, particle.Lift, loosen);
-                var line = Vector3.Lerp(lifted, particle.Target, stream);
                 var direction = particle.Target - particle.Start;
                 var side = direction.sqrMagnitude > 0.0001f ? new Vector3(-direction.y, direction.x, 0f).normalized : Vector3.up;
-                var wave = Mathf.Sin(stream * 13.5f + particle.FlowPhase) * 0.095f * Mathf.Sin(stream * Mathf.PI);
-                var ribbon = Mathf.Sin(stream * Mathf.PI) * Mathf.Lerp(0.08f, 0.018f, stream);
-                var position = line + side * (wave + ribbon);
+                Vector3 position;
+                float stream;
+                if (batch.StagedFlow)
+                {
+                    var rise = Smooth01(Mathf.InverseLerp(0f, 0.34f, release));
+                    stream = Smooth01(Mathf.InverseLerp(0.48f, 1f, release));
+                    var lifted = Vector3.Lerp(particle.Start, particle.Lift, rise);
+                    var topDrift = side * Mathf.Sin(release * 8.5f + particle.FlowPhase) * 0.035f * (1f - stream);
+                    var upwardBreath = Vector3.up * Mathf.Sin(release * Mathf.PI) * 0.045f * (1f - stream);
+                    var direct = Vector3.Lerp(particle.Lift, particle.Target, stream);
+                    var streamWave = side * Mathf.Sin(stream * 8.2f + particle.FlowPhase) * 0.048f * Mathf.Sin(stream * Mathf.PI);
+                    position = stream <= 0.001f
+                        ? lifted + topDrift + upwardBreath
+                        : direct + streamWave;
+                }
+                else
+                {
+                    var loosen = Smooth01(Mathf.InverseLerp(0f, 0.28f, release));
+                    stream = Smooth01(Mathf.InverseLerp(0.18f, 1f, release));
+                    var lifted = Vector3.Lerp(particle.Start, particle.Lift, loosen);
+                    var line = Vector3.Lerp(lifted, particle.Target, stream);
+                    var wave = Mathf.Sin(stream * 13.5f + particle.FlowPhase) * 0.095f * Mathf.Sin(stream * Mathf.PI);
+                    var ribbon = Mathf.Sin(stream * Mathf.PI) * Mathf.Lerp(0.08f, 0.018f, stream);
+                    position = line + side * (wave + ribbon);
+                }
+
                 var color = particle.Color;
-                color.a = Mathf.Lerp(0.98f, 0.08f, Smooth01(Mathf.InverseLerp(0.86f, 1f, stream)));
-                var scale = particle.Size * Mathf.Lerp(1.24f, particle.EndScale, stream);
+                color.a = Mathf.Lerp(batch.StagedFlow ? 1f : 0.98f, 0.08f, Smooth01(Mathf.InverseLerp(0.88f, 1f, stream)));
+                var scale = particle.Size * Mathf.Lerp(batch.StagedFlow ? 1.18f : 1.24f, particle.EndScale, stream);
                 WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
             }
 
@@ -1841,13 +1862,14 @@ namespace Tarot.SpreadReading
 
         private sealed class ConvergeParticleBatch
         {
-            public ConvergeParticleBatch(GameObject gameObject, Mesh mesh, ConvergeParticle[] particles, Vector3[] vertices, Color[] colors)
+            public ConvergeParticleBatch(GameObject gameObject, Mesh mesh, ConvergeParticle[] particles, Vector3[] vertices, Color[] colors, bool stagedFlow)
             {
                 GameObject = gameObject;
                 Mesh = mesh;
                 Particles = particles;
                 Vertices = vertices;
                 Colors = colors;
+                StagedFlow = stagedFlow;
             }
 
             public GameObject GameObject { get; }
@@ -1855,6 +1877,7 @@ namespace Tarot.SpreadReading
             public ConvergeParticle[] Particles { get; }
             public Vector3[] Vertices { get; }
             public Color[] Colors { get; }
+            public bool StagedFlow { get; }
         }
 
         private sealed class HoverTarget : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
