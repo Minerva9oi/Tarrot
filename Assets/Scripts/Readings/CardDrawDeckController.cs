@@ -10,7 +10,12 @@ namespace Tarot.Readings
         private const int FocusIndex = 39;
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
-        private const float GestureHoverRetainDuration = 0.42f;
+        private const float GestureHoverRetainDuration = 1.05f;
+        private const float GestureHoverPaddingPixels = 96f;
+        private const float GestureHoverMaxDistancePixels = 196f;
+        private const float HoverLiftWorldUnits = 0.16f;
+        private const float HoverScaleMultiplier = 1.045f;
+        private const float HoverFocusBoost = 0.18f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly List<TarotRuntimeCard> sourceCards = new();
@@ -27,6 +32,8 @@ namespace Tarot.Readings
         private bool inputEnabled = true;
         private CardDrawCardView gestureHoveredCard;
         private float gestureHoverRetainTimer;
+        private Vector2 lastGestureScreenPosition;
+        private bool hasLastGestureScreenPosition;
         private Vector3 lastMousePosition;
         private Vector3 mouseDownPosition;
 
@@ -133,7 +140,9 @@ namespace Tarot.Readings
                 return;
             }
 
-            var selected = GetClickedCard(screenPosition);
+            lastGestureScreenPosition = screenPosition;
+            hasLastGestureScreenPosition = true;
+            var selected = GetGestureTargetCard(screenPosition);
             if (selected != null)
             {
                 gestureHoveredCard = selected;
@@ -149,12 +158,22 @@ namespace Tarot.Readings
 
         public bool TrySelectGestureHoveredCard()
         {
-            if (!inputEnabled || gestureHoveredCard == null || gestureHoveredCard.IsSelected)
+            if (!inputEnabled)
             {
                 return false;
             }
 
             var selected = gestureHoveredCard;
+            if ((selected == null || selected.IsSelected) && hasLastGestureScreenPosition)
+            {
+                selected = GetGestureTargetCard(lastGestureScreenPosition);
+            }
+
+            if (selected == null || selected.IsSelected)
+            {
+                return false;
+            }
+
             ClearGestureHover();
             SelectCard(selected);
             return true;
@@ -164,6 +183,7 @@ namespace Tarot.Readings
         {
             gestureHoveredCard = null;
             gestureHoverRetainTimer = 0f;
+            hasLastGestureScreenPosition = false;
         }
 
         private void UpdateGestureHoverRetention()
@@ -299,9 +319,9 @@ namespace Tarot.Readings
 
                 tint.a = 1f;
 
-                view.Transform.localPosition = position + (isGestureHovered ? Vector3.up * layout.RingCardScale * 0.16f : Vector3.zero);
+                view.Transform.localPosition = position + (isGestureHovered ? Vector3.up * HoverLiftWorldUnits : Vector3.zero);
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
-                var scale = layout.RingCardScale * (isGestureHovered ? 1.045f : 1f);
+                var scale = layout.RingCardScale * (isGestureHovered ? HoverScaleMultiplier : 1f);
                 view.Transform.localScale = new Vector3(scale, scale, 1f);
                 view.Renderer.color = tint;
                 view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f + (isGestureHovered ? 36f : 0f));
@@ -333,6 +353,11 @@ namespace Tarot.Readings
             }
 
             selected.IsSelected = true;
+            gestureHoveredCard = selected;
+            selected.Transform.localPosition += Vector3.up * HoverLiftWorldUnits;
+            selected.Transform.localScale *= HoverScaleMultiplier;
+            selected.Renderer.color = Color.Lerp(selected.Renderer.color, focusColor, HoverFocusBoost);
+            selected.Renderer.sortingOrder += 32;
             SetInputEnabled(false);
             CardSelected?.Invoke(selected);
         }
@@ -368,6 +393,78 @@ namespace Tarot.Readings
             }
 
             return bestCard;
+        }
+
+        private CardDrawCardView GetGestureTargetCard(Vector3 screenPosition)
+        {
+            var exactCard = GetClickedCard(screenPosition);
+            if (exactCard != null)
+            {
+                return exactCard;
+            }
+
+            var mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                return null;
+            }
+
+            CardDrawCardView bestCard = null;
+            var bestScore = float.MinValue;
+            var bestDistance = float.MaxValue;
+
+            foreach (var view in cardViews)
+            {
+                if (view.IsSelected || view.Transform == null || !view.Transform.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                var center = mainCamera.WorldToScreenPoint(view.Transform.position);
+                var screenPoint = new Vector2(screenPosition.x, screenPosition.y);
+                var distance = Vector2.Distance(screenPoint, new Vector2(center.x, center.y));
+                var bounds = GetScreenBounds(mainCamera, view.Renderer.bounds);
+                bounds.xMin -= GestureHoverPaddingPixels;
+                bounds.xMax += GestureHoverPaddingPixels;
+                bounds.yMin -= GestureHoverPaddingPixels;
+                bounds.yMax += GestureHoverPaddingPixels;
+
+                if (!bounds.Contains(screenPoint) && distance > GestureHoverMaxDistancePixels)
+                {
+                    continue;
+                }
+
+                var proximityScore = 1f - Mathf.Clamp01(distance / Mathf.Max(1f, GestureHoverMaxDistancePixels));
+                var sortingScore = view.Renderer.sortingOrder * 0.001f;
+                var score = proximityScore + sortingScore;
+                if (score > bestScore || (Mathf.Approximately(score, bestScore) && distance < bestDistance))
+                {
+                    bestScore = score;
+                    bestDistance = distance;
+                    bestCard = view;
+                }
+            }
+
+            return bestCard;
+        }
+
+        private static Rect GetScreenBounds(Camera camera, Bounds bounds)
+        {
+            var min = new Vector2(float.MaxValue, float.MaxValue);
+            var max = new Vector2(float.MinValue, float.MinValue);
+
+            for (var x = -1; x <= 1; x += 2)
+            {
+                for (var y = -1; y <= 1; y += 2)
+                {
+                    var corner = bounds.center + new Vector3(bounds.extents.x * x, bounds.extents.y * y, 0f);
+                    var screen = camera.WorldToScreenPoint(corner);
+                    min = Vector2.Min(min, new Vector2(screen.x, screen.y));
+                    max = Vector2.Max(max, new Vector2(screen.x, screen.y));
+                }
+            }
+
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
         private CardDrawLayoutProfile GetDrawLayout()

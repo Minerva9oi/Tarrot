@@ -8,14 +8,16 @@ namespace Tarot.Input
         private const float CalibrationDuration = 1f;
         private const float GestureWarmupDuration = 0.35f;
         private const float SelectionCooldown = 1.1f;
-        private const float PinchConfirmDuration = 0.18f;
-        private const float HoverGraceDuration = 0.75f;
+        private const float PinchConfirmDuration = 0.14f;
+        private const float HoverGraceDuration = 1.15f;
         private const float ConfirmFeedbackDuration = 0.28f;
         private const float HoldConfirmDuration = 0.85f;
         private const float CenterDeadZone = 0.08f;
         private const float CalibrationHorizontalTolerance = 0.12f;
         private const float MaxRotationDegreesPerFrame = 0.82f;
         private const float OpenHandDropoutGraceDuration = 0.38f;
+        private const float MaxPalmJumpPerFrame = 0.28f;
+        private const float EdgeInstabilityMargin = 0.075f;
 
         [SerializeField] private bool showDebugOverlay = true;
 
@@ -105,10 +107,22 @@ namespace Tarot.Input
                 return;
             }
 
-            smoothedPalm = Vector2.Lerp(smoothedPalm, MirrorForPlayer(currentState.PalmCenter), 0.34f);
+            var palmTarget = MirrorForPlayer(currentState.PalmCenter);
+            var unstablePalmFrame = IsUnstablePalmFrame(palmTarget);
+            if (!unstablePalmFrame)
+            {
+                smoothedPalm = Vector2.Lerp(smoothedPalm, palmTarget, 0.34f);
+            }
+
             if (currentState.IsIndexPoint)
             {
-                smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, MirrorForPlayer(currentState.PointerCenter), 0.42f);
+                var pointerTarget = MirrorForPlayer(currentState.PointerCenter);
+                smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pointerTarget, 0.42f);
+            }
+            else if (currentState.IsThreeFingerPinch)
+            {
+                var pinchTarget = MirrorForPlayer(currentState.PinchCenter);
+                smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pinchTarget, 0.56f);
             }
 
             if (calibrationVisible || !calibrated)
@@ -122,7 +136,7 @@ namespace Tarot.Input
                 return;
             }
 
-            UpdateRotation();
+            UpdateRotation(unstablePalmFrame);
             UpdateGestureHover();
             UpdatePinchSelection();
             UpdateUiHoldConfirm();
@@ -226,9 +240,9 @@ namespace Tarot.Input
             ResetTimers();
         }
 
-        private void UpdateRotation()
+        private void UpdateRotation(bool unstablePalmFrame)
         {
-            if (currentState.IsOpenHand && !currentState.IsIndexPoint && !currentState.IsThreeFingerPinch)
+            if (currentState.IsOpenHand && !currentState.IsIndexPoint && !currentState.IsThreeFingerPinch && !unstablePalmFrame)
             {
                 lastOpenHandPalm = smoothedPalm;
                 openHandDropoutTimer = OpenHandDropoutGraceDuration;
@@ -243,6 +257,22 @@ namespace Tarot.Input
 
             openHandDropoutTimer = 0f;
             smoothedRotation = Mathf.Lerp(smoothedRotation, 0f, 1f - Mathf.Exp(-10f * Time.deltaTime));
+        }
+
+        private bool IsUnstablePalmFrame(Vector2 palmTarget)
+        {
+            var jump = Vector2.Distance(palmTarget, smoothedPalm);
+            if (jump <= MaxPalmJumpPerFrame)
+            {
+                return false;
+            }
+
+            return IsNearHorizontalEdge(palmTarget) || IsNearHorizontalEdge(smoothedPalm);
+        }
+
+        private static bool IsNearHorizontalEdge(Vector2 point)
+        {
+            return point.x <= EdgeInstabilityMargin || point.x >= 1f - EdgeInstabilityMargin;
         }
 
         private bool TryContinueOpenHandRotationDuringDropout()
@@ -288,8 +318,9 @@ namespace Tarot.Input
                 return;
             }
 
-            if (currentState.IsThreeFingerPinch && gestureHoverActive)
+            if (currentState.IsThreeFingerPinch)
             {
+                gestureHoverActive = true;
                 hoverGraceTimer = Mathf.Max(hoverGraceTimer, PinchConfirmDuration);
                 GestureHoverMoved?.Invoke(ToScreenPosition(smoothedGestureCursor));
                 return;

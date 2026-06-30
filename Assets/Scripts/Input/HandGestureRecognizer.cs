@@ -92,10 +92,13 @@ namespace Tarot.Input
             var thumbIndexDistance = Vector2.Distance(thumbTip, indexTip);
             var thumbMiddleDistance = Vector2.Distance(thumbTip, middleTip);
             var indexMiddleDistance = Vector2.Distance(indexTip, middleTip);
+            var thumbTouchesIndex = thumbIndexDistance <= handScale * 0.48f;
+            var thumbTouchesMiddle = thumbMiddleDistance <= handScale * 0.56f;
+            var indexMiddleCompact = indexMiddleDistance <= handScale * 0.52f;
             var isThreeFingerPinch =
-                thumbIndexDistance <= handScale * 0.34f &&
-                thumbMiddleDistance <= handScale * 0.4f &&
-                indexMiddleDistance <= handScale * 0.34f;
+                thumbTouchesIndex &&
+                thumbTouchesMiddle &&
+                (indexMiddleCompact || extended <= 3 || (!indexExtended && !middleExtended));
             var isIndexPoint =
                 !isThreeFingerPinch &&
                 indexExtended &&
