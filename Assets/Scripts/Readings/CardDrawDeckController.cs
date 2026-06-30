@@ -176,26 +176,6 @@ namespace Tarot.Readings
             return true;
         }
 
-        public bool TrySelectGestureCardAt(Vector2 screenPosition)
-        {
-            if (!inputEnabled)
-            {
-                return false;
-            }
-
-            lastGestureScreenPosition = screenPosition;
-            hasLastGestureScreenPosition = true;
-            var selected = GetGestureTargetCard(screenPosition);
-            if (selected == null || selected.IsSelected)
-            {
-                return false;
-            }
-
-            ClearGestureHover();
-            SelectCard(selected);
-            return true;
-        }
-
         public void ClearGestureHover()
         {
             gestureHoveredCard = null;
