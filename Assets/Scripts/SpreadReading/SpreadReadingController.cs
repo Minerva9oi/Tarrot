@@ -80,6 +80,8 @@ namespace Tarot.SpreadReading
         private bool infoPinned;
         private bool infoDismissedUntilExit;
         private float infoHoverTimer;
+        private Vector2 lastGestureHoverPosition;
+        private bool hasLastGestureHoverPosition;
 
         public event Action BackRequested;
 
@@ -165,6 +167,7 @@ namespace Tarot.SpreadReading
             immediateFinalCentered = false;
             stagedFinalLayoutComplete = false;
             pinnedStagedResultIndex = -1;
+            hasLastGestureHoverPosition = false;
             activeQuestion = string.Empty;
 
             for (var index = transform.childCount - 1; index >= 0; index--)
@@ -391,9 +394,9 @@ namespace Tarot.SpreadReading
             gestureObject.transform.SetParent(transform, false);
             gestureInput = gestureObject.AddComponent<CameraGestureInputSource>();
             gestureInput.RotationRequested += degrees => deckController?.RotateFromGesture(degrees);
-            gestureInput.GestureHoverMoved += position => deckController?.UpdateGestureHover(position);
-            gestureInput.GestureHoverCleared += () => deckController?.ClearGestureHover();
-            gestureInput.GestureConfirmRequested += () => deckController?.TrySelectGestureHoveredCard();
+            gestureInput.GestureHoverMoved += HandleGestureHoverMoved;
+            gestureInput.GestureHoverCleared += HandleGestureHoverCleared;
+            gestureInput.GestureConfirmRequested += HandleGestureConfirmRequested;
             gestureInput.HoldConfirmRequested += TryHandleGestureHoldConfirm;
 
             var toggleObject = new GameObject("Gesture Toggle");
@@ -416,6 +419,40 @@ namespace Tarot.SpreadReading
             {
                 gestureToggle.SetState(accepted, false);
             }
+        }
+
+        private void HandleGestureHoverMoved(Vector2 position)
+        {
+            lastGestureHoverPosition = position;
+            hasLastGestureHoverPosition = true;
+            deckController?.UpdateGestureHover(position);
+        }
+
+        private void HandleGestureHoverCleared()
+        {
+            deckController?.ClearGestureHover();
+        }
+
+        private void HandleGestureConfirmRequested()
+        {
+            if (questionPanel != null && questionPanel.activeSelf)
+            {
+                StartReading();
+                return;
+            }
+
+            if (!drawStarted || isResolving || GetDrawCount() >= spreadDefinition.CardCount || deckController == null)
+            {
+                return;
+            }
+
+            if (hasLastGestureHoverPosition)
+            {
+                deckController.TrySelectGestureCardAt(lastGestureHoverPosition);
+                return;
+            }
+
+            deckController.TrySelectGestureHoveredCard();
         }
 
         private bool TryHandleGestureHoldConfirm(Vector2 screenPosition)
@@ -530,6 +567,7 @@ namespace Tarot.SpreadReading
         private void SetQuestionMode()
         {
             drawStarted = false;
+            hasLastGestureHoverPosition = false;
             infoPinned = false;
             infoHovering = false;
             infoDismissedUntilExit = false;
