@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Tarot.Appearance;
 using Tarot.Cards;
+using Tarot.Input;
 using Tarot.Localization;
 using Tarot.Readings;
 using Tarot.RuntimeDeck;
@@ -39,6 +40,8 @@ namespace Tarot.DailyReading
         private DailyImmersiveDeckController deckController;
         private Canvas canvas;
         private Text resultText;
+        private CameraGestureInputSource gestureInput;
+        private GestureToggleControl gestureToggle;
         private bool isResolving;
         private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
@@ -100,6 +103,7 @@ namespace Tarot.DailyReading
 
             CreateButton(canvas.transform, "返回", new Vector2(-790f, -456f), () => BackRequested?.Invoke());
             CreateButton(canvas.transform, "再抽一次", new Vector2(790f, -456f), ResetReading);
+            CreateGestureControls(canvas.transform);
         }
 
         private void BuildDeckController()
@@ -115,6 +119,38 @@ namespace Tarot.DailyReading
                 card => cardDeckArt != null ? cardDeckArt.GetFrontSprite(card.CardId) : null,
                 cardDimColor,
                 focusColor);
+        }
+
+        private void CreateGestureControls(Transform canvasRoot)
+        {
+            var gestureObject = new GameObject("Video Style Gesture Input");
+            gestureObject.transform.SetParent(transform, false);
+            gestureInput = gestureObject.AddComponent<CameraGestureInputSource>();
+            gestureInput.RotationRequested += degrees => deckController?.RotateFromGesture(degrees);
+            gestureInput.GestureHoverMoved += position => deckController?.UpdateGestureHover(position);
+            gestureInput.GestureHoverCleared += () => deckController?.ClearGestureHover();
+            gestureInput.GestureConfirmRequested += () => deckController?.TrySelectGestureHoveredCard();
+
+            var toggleObject = new GameObject("Gesture Toggle");
+            toggleObject.transform.SetParent(canvasRoot, false);
+            gestureToggle = toggleObject.AddComponent<GestureToggleControl>();
+            gestureToggle.Initialize(defaultFont, new Vector2(-42f, -34f));
+            gestureToggle.Toggled += HandleGestureToggled;
+            gestureToggle.HelpRequested += () => gestureInput?.ShowOnboarding();
+        }
+
+        private void HandleGestureToggled(bool isOn)
+        {
+            if (gestureInput == null || gestureToggle == null)
+            {
+                return;
+            }
+
+            var accepted = gestureInput.SetGestureEnabled(isOn);
+            if (accepted != isOn)
+            {
+                gestureToggle.SetState(accepted, false);
+            }
         }
 
         private void HandleDeckRotated(float degrees)

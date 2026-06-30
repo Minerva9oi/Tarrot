@@ -101,6 +101,48 @@ namespace Tarot.DailyReading
             }
         }
 
+        public void RotateFromGesture(float degrees)
+        {
+            if (!inputEnabled || layoutFrozen || cardViews.Count == 0)
+            {
+                return;
+            }
+
+            Rotate(degrees);
+        }
+
+        public void UpdateGestureHover(Vector2 screenPosition)
+        {
+            if (!inputEnabled || layoutFrozen || cardViews.Count == 0)
+            {
+                ClearGestureHover();
+                return;
+            }
+
+            hoveredCard = GetTopCardAtScreenPosition(screenPosition, false);
+        }
+
+        public bool TrySelectGestureHoveredCard()
+        {
+            if (!inputEnabled || layoutFrozen || cardViews.Count == 0 || hoveredCard == null)
+            {
+                return false;
+            }
+
+            SelectCard(hoveredCard);
+            return true;
+        }
+
+        public void ClearGestureHover()
+        {
+            if (hoveredCard == null)
+            {
+                return;
+            }
+
+            hoveredCard = null;
+        }
+
         public void ResetDeck()
         {
             rotationOffset = 0f;
@@ -281,6 +323,16 @@ namespace Tarot.DailyReading
         private void TrySelectClickedCard(Vector3 screenPosition)
         {
             var selected = GetTopCardAtScreenPosition(screenPosition, false);
+            if (selected == null)
+            {
+                return;
+            }
+
+            SelectCard(selected);
+        }
+
+        private void SelectCard(CardDrawCardView selected)
+        {
             if (selected == null)
             {
                 return;
