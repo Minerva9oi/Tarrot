@@ -15,6 +15,7 @@ namespace Tarot.Input
         private const float CenterDeadZone = 0.08f;
         private const float CalibrationHorizontalTolerance = 0.12f;
         private const float MaxRotationDegreesPerFrame = 0.82f;
+        private const float OpenHandDropoutGraceDuration = 0.38f;
 
         [SerializeField] private bool showDebugOverlay = true;
 
@@ -31,10 +32,12 @@ namespace Tarot.Input
         private float holdTimer;
         private float pinchTimer;
         private float hoverGraceTimer;
+        private float openHandDropoutTimer;
         private float confirmFeedbackTimer;
         private float selectionCooldownTimer;
         private float calibratedCenterX = 0.5f;
         private float smoothedRotation;
+        private Vector2 lastOpenHandPalm = new(0.5f, 0.5f);
         private bool gestureEnabled;
         private bool calibrationVisible;
         private bool calibrated;
@@ -80,7 +83,11 @@ namespace Tarot.Input
                 pinchTimer = 0f;
                 DecayGestureHoverGrace();
                 ClearGestureHoverIfExpired();
-                smoothedRotation = Mathf.Lerp(smoothedRotation, 0f, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                if (!TryContinueOpenHandRotationDuringDropout())
+                {
+                    smoothedRotation = Mathf.Lerp(smoothedRotation, 0f, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                }
+
                 return;
             }
 
@@ -90,6 +97,11 @@ namespace Tarot.Input
             {
                 DecayGestureHoverGrace();
                 ClearGestureHoverIfExpired();
+                if (!TryContinueOpenHandRotationDuringDropout())
+                {
+                    smoothedRotation = Mathf.Lerp(smoothedRotation, 0f, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                }
+
                 return;
             }
 
@@ -216,13 +228,38 @@ namespace Tarot.Input
 
         private void UpdateRotation()
         {
-            if (!currentState.IsOpenHand || currentState.IsIndexPoint || currentState.IsThreeFingerPinch)
+            if (currentState.IsOpenHand && !currentState.IsIndexPoint && !currentState.IsThreeFingerPinch)
             {
-                smoothedRotation = Mathf.Lerp(smoothedRotation, 0f, 1f - Mathf.Exp(-10f * Time.deltaTime));
+                lastOpenHandPalm = smoothedPalm;
+                openHandDropoutTimer = OpenHandDropoutGraceDuration;
+                ApplyRotationFromPalm(smoothedPalm);
                 return;
             }
 
-            var offset = smoothedPalm.x - calibratedCenterX;
+            if (!currentState.IsIndexPoint && !currentState.IsThreeFingerPinch && TryContinueOpenHandRotationDuringDropout())
+            {
+                return;
+            }
+
+            openHandDropoutTimer = 0f;
+            smoothedRotation = Mathf.Lerp(smoothedRotation, 0f, 1f - Mathf.Exp(-10f * Time.deltaTime));
+        }
+
+        private bool TryContinueOpenHandRotationDuringDropout()
+        {
+            if (!calibrated || calibrationVisible || gestureWarmupTimer > 0f || openHandDropoutTimer <= 0f)
+            {
+                return false;
+            }
+
+            openHandDropoutTimer = Mathf.Max(0f, openHandDropoutTimer - Time.deltaTime);
+            ApplyRotationFromPalm(lastOpenHandPalm);
+            return true;
+        }
+
+        private void ApplyRotationFromPalm(Vector2 palmPosition)
+        {
+            var offset = palmPosition.x - calibratedCenterX;
             var magnitude = Mathf.Abs(offset);
             if (magnitude <= CenterDeadZone)
             {
@@ -345,6 +382,7 @@ namespace Tarot.Input
             holdTimer = 0f;
             pinchTimer = 0f;
             hoverGraceTimer = 0f;
+            openHandDropoutTimer = 0f;
             confirmFeedbackTimer = 0f;
             selectionCooldownTimer = 0f;
             gestureHoverActive = false;

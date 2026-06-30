@@ -10,6 +10,7 @@ namespace Tarot.Readings
         private const int FocusIndex = 39;
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
+        private const float GestureHoverRetainDuration = 0.42f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly List<TarotRuntimeCard> sourceCards = new();
@@ -24,6 +25,8 @@ namespace Tarot.Readings
         private bool dragExceededThreshold;
         private bool pointerDownOverUi;
         private bool inputEnabled = true;
+        private CardDrawCardView gestureHoveredCard;
+        private float gestureHoverRetainTimer;
         private Vector3 lastMousePosition;
         private Vector3 mouseDownPosition;
 
@@ -40,6 +43,7 @@ namespace Tarot.Readings
             }
 
             ApplyResponsiveLayout();
+            UpdateGestureHoverRetention();
 
             if (inputEnabled)
             {
@@ -78,6 +82,10 @@ namespace Tarot.Readings
             inputEnabled = isEnabled;
             isDragging = false;
             dragExceededThreshold = false;
+            if (!isEnabled)
+            {
+                ClearGestureHover();
+            }
         }
 
         public void SetDrawLayout(CardDrawLayoutProfile layout)
@@ -90,6 +98,7 @@ namespace Tarot.Readings
         public void ResetDeck()
         {
             rotationOffset = 0f;
+            ClearGestureHover();
             ClearDeck();
             BuildDeck(TarotDeckShuffler.CreateShuffledCopy(sourceCards), frontSpriteProvider);
 
@@ -104,6 +113,67 @@ namespace Tarot.Readings
 
             SetInputEnabled(true);
             UpdateCardLayout();
+        }
+
+        public void RotateFromGesture(float degrees)
+        {
+            if (!inputEnabled || cardViews.Count == 0)
+            {
+                return;
+            }
+
+            Rotate(degrees);
+        }
+
+        public void UpdateGestureHover(Vector2 screenPosition)
+        {
+            if (!inputEnabled || cardViews.Count == 0)
+            {
+                ClearGestureHover();
+                return;
+            }
+
+            var selected = GetClickedCard(screenPosition);
+            if (selected != null)
+            {
+                gestureHoveredCard = selected;
+                gestureHoverRetainTimer = GestureHoverRetainDuration;
+                return;
+            }
+
+            if (gestureHoverRetainTimer <= 0f)
+            {
+                gestureHoveredCard = null;
+            }
+        }
+
+        public bool TrySelectGestureHoveredCard()
+        {
+            if (!inputEnabled || gestureHoveredCard == null || gestureHoveredCard.IsSelected)
+            {
+                return false;
+            }
+
+            var selected = gestureHoveredCard;
+            ClearGestureHover();
+            SelectCard(selected);
+            return true;
+        }
+
+        public void ClearGestureHover()
+        {
+            gestureHoveredCard = null;
+            gestureHoverRetainTimer = 0f;
+        }
+
+        private void UpdateGestureHoverRetention()
+        {
+            if (gestureHoverRetainTimer <= 0f)
+            {
+                return;
+            }
+
+            gestureHoverRetainTimer = Mathf.Max(0f, gestureHoverRetainTimer - Time.deltaTime);
         }
 
         private void BuildDeck(IReadOnlyList<TarotRuntimeCard> cards, Func<TarotRuntimeCard, Sprite> frontSpriteProvider)
@@ -220,14 +290,21 @@ namespace Tarot.Readings
                     Mathf.Sin(radians) * layoutMetrics.RingRadius + layoutMetrics.RingYOffset,
                     0f);
                 var centerProximity = 1f - Mathf.Clamp01(Mathf.Abs(normalizedAngle) / halfVisibleArc);
+                var isGestureHovered = view == gestureHoveredCard;
                 var tint = Color.Lerp(cardDimColor, focusColor, 0.2f + centerProximity * 0.22f);
+                if (isGestureHovered)
+                {
+                    tint = Color.Lerp(tint, focusColor, 0.52f);
+                }
+
                 tint.a = 1f;
 
-                view.Transform.localPosition = position;
+                view.Transform.localPosition = position + (isGestureHovered ? Vector3.up * layout.RingCardScale * 0.16f : Vector3.zero);
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
-                view.Transform.localScale = new Vector3(layout.RingCardScale, layout.RingCardScale, 1f);
+                var scale = layout.RingCardScale * (isGestureHovered ? 1.045f : 1f);
+                view.Transform.localScale = new Vector3(scale, scale, 1f);
                 view.Renderer.color = tint;
-                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f);
+                view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f + (isGestureHovered ? 36f : 0f));
             }
         }
 
@@ -240,6 +317,16 @@ namespace Tarot.Readings
         private void TrySelectClickedCard(Vector3 screenPosition)
         {
             var selected = GetClickedCard(screenPosition);
+            if (selected == null)
+            {
+                return;
+            }
+
+            SelectCard(selected);
+        }
+
+        private void SelectCard(CardDrawCardView selected)
+        {
             if (selected == null)
             {
                 return;

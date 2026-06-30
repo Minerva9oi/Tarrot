@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Tarot.Appearance;
 using Tarot.Cards;
+using Tarot.Input;
 using Tarot.Readings;
 using Tarot.RuntimeDeck;
 using UnityEngine;
@@ -49,6 +50,8 @@ namespace Tarot.SpreadReading
         private Text[] cardResultTexts = Array.Empty<Text>();
         private Transform[] slotAnchors = Array.Empty<Transform>();
         private CardDrawDeckController deckController;
+        private CameraGestureInputSource gestureInput;
+        private GestureToggleControl gestureToggle;
         private CardDeckArtData cardDeckArt;
         private Sprite cardBackSprite;
         private Sprite fallbackCardFaceSprite;
@@ -146,6 +149,7 @@ namespace Tarot.SpreadReading
             CreateCardResultTexts(canvas.transform);
             CreateInfoPanel(canvas.transform);
             CreateHiddenControls(canvas.transform);
+            CreateGestureControls(canvas.transform);
         }
 
         private void RebuildSceneForDefinition()
@@ -379,6 +383,63 @@ namespace Tarot.SpreadReading
 
             CreateButton(panelObject.transform, "返回", new Vector2(-58f, 0f), new Vector2(96f, 40f), () => BackRequested?.Invoke());
             CreateButton(panelObject.transform, "再抽一次", new Vector2(58f, 0f), new Vector2(112f, 40f), ResetReading);
+        }
+
+        private void CreateGestureControls(Transform canvasRoot)
+        {
+            var gestureObject = new GameObject("Video Style Gesture Input");
+            gestureObject.transform.SetParent(transform, false);
+            gestureInput = gestureObject.AddComponent<CameraGestureInputSource>();
+            gestureInput.RotationRequested += degrees => deckController?.RotateFromGesture(degrees);
+            gestureInput.GestureHoverMoved += position => deckController?.UpdateGestureHover(position);
+            gestureInput.GestureHoverCleared += () => deckController?.ClearGestureHover();
+            gestureInput.GestureConfirmRequested += () => deckController?.TrySelectGestureHoveredCard();
+            gestureInput.HoldConfirmRequested += TryHandleGestureHoldConfirm;
+
+            var toggleObject = new GameObject("Gesture Toggle");
+            toggleObject.transform.SetParent(canvasRoot, false);
+            gestureToggle = toggleObject.AddComponent<GestureToggleControl>();
+            gestureToggle.Initialize(defaultFont, new Vector2(-42f, -96f));
+            gestureToggle.Toggled += HandleGestureToggled;
+            gestureToggle.HelpRequested += () => gestureInput?.ShowOnboarding();
+        }
+
+        private void HandleGestureToggled(bool isOn)
+        {
+            if (gestureInput == null || gestureToggle == null)
+            {
+                return;
+            }
+
+            var accepted = gestureInput.SetGestureEnabled(isOn);
+            if (accepted != isOn)
+            {
+                gestureToggle.SetState(accepted, false);
+            }
+        }
+
+        private bool TryHandleGestureHoldConfirm(Vector2 screenPosition)
+        {
+            if (infoHotspot != null && RectTransformUtility.RectangleContainsScreenPoint(infoHotspot, screenPosition))
+            {
+                ToggleInfoPinned();
+                return true;
+            }
+
+            if (controlsHotspot != null && RectTransformUtility.RectangleContainsScreenPoint(controlsHotspot, screenPosition))
+            {
+                controlsHoverTimer = 2f;
+                if (controlsGroup != null)
+                {
+                    controlsGroup.alpha = 1f;
+                    controlsGroup.blocksRaycasts = true;
+                    controlsGroup.interactable = true;
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         private InputField CreateInputField(Transform parent)
