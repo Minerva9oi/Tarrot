@@ -13,6 +13,9 @@ namespace Tarot.Readings
         private const float GestureHoverRetainDuration = 1.05f;
         private const float GestureHoverPaddingPixels = 96f;
         private const float GestureHoverMaxDistancePixels = 196f;
+        private const float HoverLiftWorldUnits = 0.16f;
+        private const float HoverScaleMultiplier = 1.045f;
+        private const float HoverFocusBoost = 0.18f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly List<TarotRuntimeCard> sourceCards = new();
@@ -316,9 +319,9 @@ namespace Tarot.Readings
 
                 tint.a = 1f;
 
-                view.Transform.localPosition = position + (isGestureHovered ? Vector3.up * layout.RingCardScale * 0.16f : Vector3.zero);
+                view.Transform.localPosition = position + (isGestureHovered ? Vector3.up * HoverLiftWorldUnits : Vector3.zero);
                 view.Transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
-                var scale = layout.RingCardScale * (isGestureHovered ? 1.045f : 1f);
+                var scale = layout.RingCardScale * (isGestureHovered ? HoverScaleMultiplier : 1f);
                 view.Transform.localScale = new Vector3(scale, scale, 1f);
                 view.Renderer.color = tint;
                 view.Renderer.sortingOrder = Mathf.RoundToInt(1000 + centerProximity * 100f + (isGestureHovered ? 36f : 0f));
@@ -350,6 +353,11 @@ namespace Tarot.Readings
             }
 
             selected.IsSelected = true;
+            gestureHoveredCard = selected;
+            selected.Transform.localPosition += Vector3.up * HoverLiftWorldUnits;
+            selected.Transform.localScale *= HoverScaleMultiplier;
+            selected.Renderer.color = Color.Lerp(selected.Renderer.color, focusColor, HoverFocusBoost);
+            selected.Renderer.sortingOrder += 32;
             SetInputEnabled(false);
             CardSelected?.Invoke(selected);
         }
