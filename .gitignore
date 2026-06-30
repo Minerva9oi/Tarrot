@@ -47,6 +47,9 @@ sysinfo.txt
 *.unitypackage
 *.app
 
+# Local package cache
+[Pp]ackages/[Ll]ocal[Pp]ackages/
+
 # Logs and temporary files
 *.log
 *.tmp
