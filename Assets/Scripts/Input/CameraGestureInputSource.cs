@@ -15,7 +15,7 @@ namespace Tarot.Input
         private const float CenterDeadZone = 0.08f;
         private const float CalibrationHorizontalTolerance = 0.12f;
         private const float MaxRotationDegreesPerFrame = 0.82f;
-        private const float OpenHandDropoutGraceDuration = 0.38f;
+        private const float OpenHandDropoutGraceDuration = 1.15f;
         private const float MaxPalmJumpPerFrame = 0.28f;
         private const float EdgeInstabilityMargin = 0.075f;
 
@@ -118,11 +118,6 @@ namespace Tarot.Input
             {
                 var pointerTarget = MirrorForPlayer(currentState.PointerCenter);
                 smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pointerTarget, 0.42f);
-            }
-            else if (currentState.IsThreeFingerPinch)
-            {
-                var pinchTarget = MirrorForPlayer(currentState.PinchCenter);
-                smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pinchTarget, 0.56f);
             }
 
             if (calibrationVisible || !calibrated)
@@ -322,7 +317,6 @@ namespace Tarot.Input
             {
                 gestureHoverActive = true;
                 hoverGraceTimer = Mathf.Max(hoverGraceTimer, PinchConfirmDuration);
-                GestureHoverMoved?.Invoke(ToScreenPosition(smoothedGestureCursor));
                 return;
             }
 
