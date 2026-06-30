@@ -11,6 +11,8 @@ namespace Tarot.Readings
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
         private const float GestureHoverRetainDuration = 0.42f;
+        private const float GestureHoverPaddingPixels = 74f;
+        private const float GestureHoverMaxDistancePixels = 138f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly List<TarotRuntimeCard> sourceCards = new();
@@ -133,7 +135,7 @@ namespace Tarot.Readings
                 return;
             }
 
-            var selected = GetClickedCard(screenPosition);
+            var selected = GetGestureTargetCard(screenPosition);
             if (selected != null)
             {
                 gestureHoveredCard = selected;
@@ -368,6 +370,78 @@ namespace Tarot.Readings
             }
 
             return bestCard;
+        }
+
+        private CardDrawCardView GetGestureTargetCard(Vector3 screenPosition)
+        {
+            var exactCard = GetClickedCard(screenPosition);
+            if (exactCard != null)
+            {
+                return exactCard;
+            }
+
+            var mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                return null;
+            }
+
+            CardDrawCardView bestCard = null;
+            var bestScore = float.MinValue;
+            var bestDistance = float.MaxValue;
+
+            foreach (var view in cardViews)
+            {
+                if (view.IsSelected || view.Transform == null || !view.Transform.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                var center = mainCamera.WorldToScreenPoint(view.Transform.position);
+                var screenPoint = new Vector2(screenPosition.x, screenPosition.y);
+                var distance = Vector2.Distance(screenPoint, new Vector2(center.x, center.y));
+                var bounds = GetScreenBounds(mainCamera, view.Renderer.bounds);
+                bounds.xMin -= GestureHoverPaddingPixels;
+                bounds.xMax += GestureHoverPaddingPixels;
+                bounds.yMin -= GestureHoverPaddingPixels;
+                bounds.yMax += GestureHoverPaddingPixels;
+
+                if (!bounds.Contains(screenPoint) && distance > GestureHoverMaxDistancePixels)
+                {
+                    continue;
+                }
+
+                var proximityScore = 1f - Mathf.Clamp01(distance / Mathf.Max(1f, GestureHoverMaxDistancePixels));
+                var sortingScore = view.Renderer.sortingOrder * 0.001f;
+                var score = proximityScore + sortingScore;
+                if (score > bestScore || (Mathf.Approximately(score, bestScore) && distance < bestDistance))
+                {
+                    bestScore = score;
+                    bestDistance = distance;
+                    bestCard = view;
+                }
+            }
+
+            return bestCard;
+        }
+
+        private static Rect GetScreenBounds(Camera camera, Bounds bounds)
+        {
+            var min = new Vector2(float.MaxValue, float.MaxValue);
+            var max = new Vector2(float.MinValue, float.MinValue);
+
+            for (var x = -1; x <= 1; x += 2)
+            {
+                for (var y = -1; y <= 1; y += 2)
+                {
+                    var corner = bounds.center + new Vector3(bounds.extents.x * x, bounds.extents.y * y, 0f);
+                    var screen = camera.WorldToScreenPoint(corner);
+                    min = Vector2.Min(min, new Vector2(screen.x, screen.y));
+                    max = Vector2.Max(max, new Vector2(screen.x, screen.y));
+                }
+            }
+
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
         private CardDrawLayoutProfile GetDrawLayout()
