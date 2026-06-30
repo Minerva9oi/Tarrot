@@ -11,8 +11,8 @@ namespace Tarot.Readings
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
         private const float GestureHoverRetainDuration = 1.05f;
-        private const float GestureHoverPaddingPixels = 74f;
-        private const float GestureHoverMaxDistancePixels = 138f;
+        private const float GestureHoverPaddingPixels = 96f;
+        private const float GestureHoverMaxDistancePixels = 196f;
 
         private readonly List<CardDrawCardView> cardViews = new();
         private readonly List<TarotRuntimeCard> sourceCards = new();
@@ -29,6 +29,8 @@ namespace Tarot.Readings
         private bool inputEnabled = true;
         private CardDrawCardView gestureHoveredCard;
         private float gestureHoverRetainTimer;
+        private Vector2 lastGestureScreenPosition;
+        private bool hasLastGestureScreenPosition;
         private Vector3 lastMousePosition;
         private Vector3 mouseDownPosition;
 
@@ -135,6 +137,8 @@ namespace Tarot.Readings
                 return;
             }
 
+            lastGestureScreenPosition = screenPosition;
+            hasLastGestureScreenPosition = true;
             var selected = GetGestureTargetCard(screenPosition);
             if (selected != null)
             {
@@ -151,12 +155,22 @@ namespace Tarot.Readings
 
         public bool TrySelectGestureHoveredCard()
         {
-            if (!inputEnabled || gestureHoveredCard == null || gestureHoveredCard.IsSelected)
+            if (!inputEnabled)
             {
                 return false;
             }
 
             var selected = gestureHoveredCard;
+            if ((selected == null || selected.IsSelected) && hasLastGestureScreenPosition)
+            {
+                selected = GetGestureTargetCard(lastGestureScreenPosition);
+            }
+
+            if (selected == null || selected.IsSelected)
+            {
+                return false;
+            }
+
             ClearGestureHover();
             SelectCard(selected);
             return true;
@@ -166,6 +180,7 @@ namespace Tarot.Readings
         {
             gestureHoveredCard = null;
             gestureHoverRetainTimer = 0f;
+            hasLastGestureScreenPosition = false;
         }
 
         private void UpdateGestureHoverRetention()
