@@ -18,6 +18,8 @@ namespace Tarot.Input
         private const float OpenHandDropoutGraceDuration = 1.15f;
         private const float EdgeOpenHandDropoutGraceDuration = 2.6f;
         private const float EdgeRotationAnchorInset = 0.035f;
+        private const float IndexCursorFollowLerp = 0.76f;
+        private const float IndexCursorSnapDistance = 0.18f;
         private const float MaxPalmJumpPerFrame = 0.28f;
         private const float EdgeInstabilityMargin = 0.075f;
 
@@ -119,7 +121,9 @@ namespace Tarot.Input
             if (currentState.IsIndexPoint)
             {
                 var pointerTarget = MirrorForPlayer(currentState.PointerCenter);
-                smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pointerTarget, 0.42f);
+                smoothedGestureCursor = Vector2.Distance(smoothedGestureCursor, pointerTarget) > IndexCursorSnapDistance
+                    ? pointerTarget
+                    : Vector2.Lerp(smoothedGestureCursor, pointerTarget, IndexCursorFollowLerp);
             }
             else if (currentState.IsThreeFingerPinch)
             {
@@ -348,6 +352,12 @@ namespace Tarot.Input
                 return;
             }
 
+            if (currentState.IsOpenHand)
+            {
+                ClearGestureHoverIfNeeded();
+                return;
+            }
+
             DecayGestureHoverGrace();
             if (!currentState.IsThreeFingerPinch)
             {
@@ -389,7 +399,11 @@ namespace Tarot.Input
 
         private void UpdateUiHoldConfirm()
         {
-            if (currentState.IsOpenHand || currentState.IsIndexPoint || currentState.IsThreeFingerPinch || selectionCooldownTimer > 0f)
+            if (currentState.IsOpenHand ||
+                currentState.IsIndexPoint ||
+                currentState.IsThreeFingerPinch ||
+                selectionCooldownTimer > 0f ||
+                openHandDropoutTimer > 0f)
             {
                 holdTimer = Mathf.Max(0f, holdTimer - Time.deltaTime * 1.5f);
                 return;
@@ -518,12 +532,13 @@ namespace Tarot.Input
                     : smoothedPalm;
             var screenX = Mathf.Lerp(0f, Screen.width, feedbackPosition.x);
             var screenY = Mathf.Lerp(0f, Screen.height, feedbackPosition.y);
+            var holdProgress = edgeFeedbackActive ? 0f : Mathf.Clamp01(holdTimer / HoldConfirmDuration);
             var progress = calibrationVisible
                 ? Mathf.Clamp01(calibrationTimer / CalibrationDuration)
                 : Mathf.Max(
                     Mathf.Clamp01(pinchTimer / PinchConfirmDuration),
                     Mathf.Clamp01(confirmFeedbackTimer / ConfirmFeedbackDuration),
-                    Mathf.Clamp01(holdTimer / HoldConfirmDuration));
+                    holdProgress);
             var size = Mathf.Lerp(58f, 78f, progress);
             var feedbackVisible = hasHand || edgeFeedbackActive;
             GUI.color = new Color(1f, 1f, 1f, feedbackVisible ? 0.48f : 0.12f);
