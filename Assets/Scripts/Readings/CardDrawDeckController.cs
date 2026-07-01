@@ -10,9 +10,9 @@ namespace Tarot.Readings
         private const int FocusIndex = 39;
         private const float RotationStepDegrees = 360f / 78f;
         private const float DragSelectThreshold = 12f;
-        private const float GestureHoverRetainDuration = 1.05f;
-        private const float GestureHoverPaddingPixels = 96f;
-        private const float GestureHoverMaxDistancePixels = 196f;
+        private const float GestureHoverRetainDuration = 1.5f;
+        private const float GestureHoverPaddingPixels = 150f;
+        private const float GestureHoverMaxDistancePixels = 360f;
         private const float HoverLiftWorldUnits = 0.16f;
         private const float HoverScaleMultiplier = 1.045f;
         private const float HoverFocusBoost = 0.18f;

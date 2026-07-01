@@ -119,6 +119,11 @@ namespace Tarot.Input
                 var pointerTarget = MirrorForPlayer(currentState.PointerCenter);
                 smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pointerTarget, 0.42f);
             }
+            else if (currentState.IsThreeFingerPinch)
+            {
+                var pinchTarget = MirrorForPlayer(currentState.PinchCenter);
+                smoothedGestureCursor = Vector2.Lerp(smoothedGestureCursor, pinchTarget, 0.56f);
+            }
 
             if (calibrationVisible || !calibrated)
             {
@@ -317,6 +322,7 @@ namespace Tarot.Input
             {
                 gestureHoverActive = true;
                 hoverGraceTimer = Mathf.Max(hoverGraceTimer, PinchConfirmDuration);
+                GestureHoverMoved?.Invoke(ToScreenPosition(smoothedGestureCursor));
                 return;
             }
 
