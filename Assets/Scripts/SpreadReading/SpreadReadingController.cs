@@ -19,11 +19,11 @@ namespace Tarot.SpreadReading
         private const float StagedFocusMoveDuration = 0.52f;
         private const float StagedCollectMoveDuration = 0.36f;
         private const float StagedFocusHoldDuration = 0.36f;
-        private const float StagedParticleFlowDuration = 2.22f;
+        private const float StagedParticleFlowDuration = 2.82f;
         private const float StagedSettleDuration = 0.74f;
         private const float InfoPinDelay = 3f;
         private const int ConvergeParticleCount = 360;
-        private const int StagedFaceParticleCount = 4800;
+        private const int StagedFaceParticleCount = 8200;
         private const int DeckDissolveParticleCount = 150;
         private const float StagedFocusScaleMultiplier = 1.32f;
         private const float ImmediateFinalSettleDuration = 0.78f;
@@ -917,7 +917,7 @@ namespace Tarot.SpreadReading
             {
                 elapsed += Time.deltaTime;
                 var progress = Mathf.Clamp01(elapsed / StagedParticleFlowDuration);
-                var cardFade = 1f - Smooth01(Mathf.InverseLerp(0.12f, 0.42f, progress));
+                var cardFade = 1f - Smooth01(Mathf.InverseLerp(0.2f, 0.5f, progress));
                 selected.Renderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * cardFade);
                 UpdateConvergeParticleBatch(flowBatch, progress);
                 yield return null;
@@ -1748,9 +1748,9 @@ namespace Tarot.SpreadReading
                     start,
                     target,
                     color,
-                    UnityEngine.Random.Range(0.058f, 0.118f),
-                    UnityEngine.Random.Range(0f, 0.12f) + centerDistance * UnityEngine.Random.Range(0.02f, 0.16f),
-                    UnityEngine.Random.Range(0.34f, 0.62f),
+                    UnityEngine.Random.Range(0.078f, 0.142f),
+                    UnityEngine.Random.Range(0f, 0.055f) + centerDistance * UnityEngine.Random.Range(0.01f, 0.05f),
+                    UnityEngine.Random.Range(0.42f, 0.72f),
                     UnityEngine.Random.Range(0f, Mathf.PI * 2f),
                     false);
                 WriteParticleStaticData(index, uvs, triangles);
@@ -1909,13 +1909,16 @@ namespace Tarot.SpreadReading
                 float stream;
                 if (batch.DissolveOnly)
                 {
-                    stream = Smooth01(Mathf.InverseLerp(0.08f, 1f, release));
+                    stream = Smooth01(Mathf.InverseLerp(0.3f, 1f, release));
+                    var imageHold = 1f - stream;
                     var tremble = new Vector3(
-                        Mathf.Sin(release * 18f + particle.FlowPhase) * 0.028f,
-                        Mathf.Cos(release * 15f + particle.FlowPhase) * 0.022f,
-                        0f);
-                    var gust = side * Mathf.Sin(stream * 13f + particle.FlowPhase) * 0.14f * Mathf.Sin(stream * Mathf.PI);
-                    position = Vector3.Lerp(particle.Start, particle.Target, stream) + tremble + gust;
+                        Mathf.Sin(release * 18f + particle.FlowPhase) * Mathf.Lerp(0.008f, 0.032f, stream),
+                        Mathf.Cos(release * 15f + particle.FlowPhase) * Mathf.Lerp(0.006f, 0.026f, stream),
+                        0f) * Mathf.Lerp(0.35f, 1f, stream);
+                    var gust = side * Mathf.Sin(stream * 13f + particle.FlowPhase) * 0.16f * Mathf.Sin(stream * Mathf.PI);
+                    var imageLock = particle.Start + tremble * imageHold;
+                    var loosened = Vector3.Lerp(particle.Start, particle.Target, stream) + tremble + gust;
+                    position = Vector3.Lerp(imageLock, loosened, Smooth01(Mathf.InverseLerp(0.08f, 0.36f, release)));
                 }
                 else if (batch.StagedFlow)
                 {
@@ -1948,14 +1951,14 @@ namespace Tarot.SpreadReading
                 var materialize = batch.StagedFlow
                     ? (particle.JoinsLate
                         ? Smooth01(Mathf.InverseLerp(0.62f, 0.76f, release))
-                        : Smooth01(Mathf.InverseLerp(0f, batch.DissolveOnly ? 0.16f : 0.08f, release)))
+                        : Smooth01(Mathf.InverseLerp(0f, batch.DissolveOnly ? 0.06f : 0.08f, release)))
                     : 1f;
-                var fadeStart = batch.DissolveOnly ? 0.68f : 0.88f;
-                var pale = batch.DissolveOnly ? Smooth01(Mathf.InverseLerp(0.34f, 0.9f, stream)) : 0f;
-                color = Color.Lerp(color, Color.Lerp(color, Color.white, 0.42f), pale);
+                var fadeStart = batch.DissolveOnly ? 0.78f : 0.88f;
+                var pale = batch.DissolveOnly ? Smooth01(Mathf.InverseLerp(0.58f, 0.98f, stream)) : 0f;
+                color = Color.Lerp(color, Color.Lerp(color, Color.white, 0.3f), pale);
                 color.a = Mathf.Lerp(batch.StagedFlow ? 1f : 0.98f, 0.08f, Smooth01(Mathf.InverseLerp(fadeStart, 1f, stream))) * materialize;
-                var expansionPulse = batch.DissolveOnly ? 1f + Mathf.Sin(Mathf.Clamp01(stream / 0.34f) * Mathf.PI) * 0.12f : 1f;
-                var scale = particle.Size * expansionPulse * Mathf.Lerp(batch.StagedFlow ? 1.18f : 1.24f, particle.EndScale, stream);
+                var expansionPulse = batch.DissolveOnly ? 1f + Mathf.Sin(Mathf.Clamp01(stream / 0.34f) * Mathf.PI) * 0.16f : 1f;
+                var scale = particle.Size * expansionPulse * Mathf.Lerp(batch.StagedFlow ? 1.34f : 1.24f, particle.EndScale, stream);
                 WriteParticleQuad(batch.Vertices, batch.Colors, index, position, scale, color);
             }
 

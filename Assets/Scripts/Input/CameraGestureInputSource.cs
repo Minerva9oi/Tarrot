@@ -255,6 +255,7 @@ namespace Tarot.Input
             if (currentState.IsOpenHand && !currentState.IsIndexPoint && !currentState.IsThreeFingerPinch && IsNearHorizontalEdge(palmTarget))
             {
                 lastOpenHandPalm = GetEdgeRotationPalm(palmTarget);
+                smoothedPalm = Vector2.Lerp(smoothedPalm, lastOpenHandPalm, 0.22f);
                 openHandDropoutTimer = EdgeOpenHandDropoutGraceDuration;
                 ApplyRotationFromPalm(lastOpenHandPalm);
                 return;
@@ -299,6 +300,11 @@ namespace Tarot.Input
             }
 
             openHandDropoutTimer = Mathf.Max(0f, openHandDropoutTimer - Time.deltaTime);
+            if (IsNearHorizontalEdge(lastOpenHandPalm))
+            {
+                smoothedPalm = Vector2.Lerp(smoothedPalm, lastOpenHandPalm, 0.16f);
+            }
+
             ApplyRotationFromPalm(lastOpenHandPalm);
             return true;
         }
@@ -504,7 +510,12 @@ namespace Tarot.Input
         {
             EnsureFeedbackTextures();
             var useCursorFeedback = gestureHoverActive || confirmFeedbackTimer > 0f;
-            var feedbackPosition = useCursorFeedback ? smoothedGestureCursor : smoothedPalm;
+            var edgeFeedbackActive = !useCursorFeedback && openHandDropoutTimer > 0f && IsNearHorizontalEdge(lastOpenHandPalm);
+            var feedbackPosition = useCursorFeedback
+                ? smoothedGestureCursor
+                : edgeFeedbackActive
+                    ? lastOpenHandPalm
+                    : smoothedPalm;
             var screenX = Mathf.Lerp(0f, Screen.width, feedbackPosition.x);
             var screenY = Mathf.Lerp(0f, Screen.height, feedbackPosition.y);
             var progress = calibrationVisible
@@ -514,7 +525,8 @@ namespace Tarot.Input
                     Mathf.Clamp01(confirmFeedbackTimer / ConfirmFeedbackDuration),
                     Mathf.Clamp01(holdTimer / HoldConfirmDuration));
             var size = Mathf.Lerp(58f, 78f, progress);
-            GUI.color = new Color(1f, 1f, 1f, hasHand ? 0.48f : 0.12f);
+            var feedbackVisible = hasHand || edgeFeedbackActive;
+            GUI.color = new Color(1f, 1f, 1f, feedbackVisible ? 0.48f : 0.12f);
             GUI.DrawTexture(new Rect(screenX - size * 0.5f, screenY - size * 0.5f, size, size), feedbackCircleTexture);
             if (progress > 0.01f)
             {
