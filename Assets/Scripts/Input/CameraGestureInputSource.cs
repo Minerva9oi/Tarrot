@@ -16,6 +16,8 @@ namespace Tarot.Input
         private const float CalibrationHorizontalTolerance = 0.12f;
         private const float MaxRotationDegreesPerFrame = 0.82f;
         private const float OpenHandDropoutGraceDuration = 1.15f;
+        private const float EdgeOpenHandDropoutGraceDuration = 2.6f;
+        private const float EdgeRotationAnchorInset = 0.035f;
         private const float MaxPalmJumpPerFrame = 0.28f;
         private const float EdgeInstabilityMargin = 0.075f;
 
@@ -136,7 +138,7 @@ namespace Tarot.Input
                 return;
             }
 
-            UpdateRotation(unstablePalmFrame);
+            UpdateRotation(palmTarget, unstablePalmFrame);
             UpdateGestureHover();
             UpdatePinchSelection();
             UpdateUiHoldConfirm();
@@ -240,13 +242,21 @@ namespace Tarot.Input
             ResetTimers();
         }
 
-        private void UpdateRotation(bool unstablePalmFrame)
+        private void UpdateRotation(Vector2 palmTarget, bool unstablePalmFrame)
         {
             if (currentState.IsOpenHand && !currentState.IsIndexPoint && !currentState.IsThreeFingerPinch && !unstablePalmFrame)
             {
                 lastOpenHandPalm = smoothedPalm;
                 openHandDropoutTimer = OpenHandDropoutGraceDuration;
                 ApplyRotationFromPalm(smoothedPalm);
+                return;
+            }
+
+            if (currentState.IsOpenHand && !currentState.IsIndexPoint && !currentState.IsThreeFingerPinch && IsNearHorizontalEdge(palmTarget))
+            {
+                lastOpenHandPalm = GetEdgeRotationPalm(palmTarget);
+                openHandDropoutTimer = EdgeOpenHandDropoutGraceDuration;
+                ApplyRotationFromPalm(lastOpenHandPalm);
                 return;
             }
 
@@ -273,6 +283,12 @@ namespace Tarot.Input
         private static bool IsNearHorizontalEdge(Vector2 point)
         {
             return point.x <= EdgeInstabilityMargin || point.x >= 1f - EdgeInstabilityMargin;
+        }
+
+        private static Vector2 GetEdgeRotationPalm(Vector2 palmTarget)
+        {
+            var x = palmTarget.x < 0.5f ? EdgeRotationAnchorInset : 1f - EdgeRotationAnchorInset;
+            return new Vector2(x, Mathf.Clamp01(palmTarget.y));
         }
 
         private bool TryContinueOpenHandRotationDuringDropout()
